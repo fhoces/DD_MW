@@ -442,12 +442,12 @@ Whenever the predicted wages were below the 2016 state minimum wage they were re
 if ( !("minwage" %in% dir()) ) {
   fileURL <- "https://www.dol.gov/whd/state/stateMinWageHis.htm"
   xData <- getURL(fileURL)
-  aux.1 <- readHTMLTable(xData, header = TRUE)
+  aux.1 <- readHTMLTable(xData)
   
   min.wage.data <- cbind(aux.1[[1]], aux.1[[2]][,-1], 
                          aux.1[[3]][,-1], aux.1[[4]][,-1], 
                          aux.1[[5]][1:55,-1])
-  min.wage.data <- min.wage.data[, - (32:37)]
+  min.wage.data <- min.wage.data[, - (32:38)]
   colnames(min.wage.data) <- c(gsub("(.*)([0-9]{4})(.*)","\\2",
                                     names(min.wage.data))[-c(30, 31)], 
                                "2014", "2015")
