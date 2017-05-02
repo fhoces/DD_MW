@@ -65,7 +65,7 @@ The CBO report describes three policy estimates: the effects of raising the mini
 Also add link to video on how to install R. 
 
 ```{r setup, include=FALSE}
-if (TRUE) {
+if (FALSE) {
   if (Sys.info()["sysname"] == "Darwin") {
     setwd("/Users/fhoces/dissertation/Replication")
   }else{
