@@ -151,7 +151,7 @@ mod.output.template["Net effect", ] <- c("5", "12", "2", "-17", "2")
 ```{r SA params,  eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE, cache=TRUE}  
 # The base growth rate of wages will determine the dispersion of wage growth, the mean wage groth rate will be given by the 10 year economic forecast. 
 #data inputs:
-param.wage.gr <- 1
+param.wage.gr <- 1.0
 param.worker.gr <- 1 
 
 param.eta.lit <- 1.0 #
@@ -2391,7 +2391,7 @@ final_fig1 <- df %>% select(new.inc.pc,sq.inc.pc, hhwgt.2016, balance.loss)  %>%
   theme_minimal() + 
   labs(y = "Change relative to no raise in min wage", 
        x = "Per capita income" , 
-       title = "Distribution of gains and loses across per capita income") +
+       title = "Distribution of gains and losses across per capita income") +
   geom_vline(xintercept = 11740*1:6, 
              col="red", size = 1/3) +
   scale_y_discrete(limits = c(-50e2, -25e2, 0,25e2, 50e2), 
@@ -2413,8 +2413,8 @@ final_fig1 <- df %>% select(new.inc.pc,sq.inc.pc, hhwgt.2016, balance.loss)  %>%
             label = c("6PL"), 
             size = 3, colour = "red") +
   theme(plot.title = element_text(hjust = 0.5))
-# print(final_fig1)
-# ggsave("alt_pe1.png")
+ #print(final_fig1)
+ #ggsave("alt_pe1.png")
 
 # Compute variation by hhld - plot all the effects in same units (average per group)
 final_fig2 <- df %>% 
@@ -2448,9 +2448,10 @@ final_fig2 <- df %>%
                       labels=c("Wage +", "Wage -", "Balance -")) + 
   labs(y = "$/year", 
        x = "Poverty Lines" , 
-       title = "Distribution of gains and loses across poverty lines") 
-# print(final_fig2) 
-# ggsave("final_fig2.png")
+       title = "Distribution of gains and losses across poverty lines") +
+  theme(plot.title = element_text(hjust = 0.5)) 
+ #print(final_fig2) 
+ #ggsave("final_fig2.png")
 
 quintiles <- with(df,wtd.quantile(x = sq.inc.pc, probs = 1:4/5, weights = hhwgt.2016))
 df$income.group <- with(df, findInterval(x = sq.inc.pc, vec =  c(-Inf,quintiles) ))
@@ -2492,14 +2493,16 @@ final_fig3 <- final_fig3 %>%
                       labels=c("Wage +", "Wage -", "Balance -")) + 
   labs(y = "$/year", 
        x = "Quintiles of per capita income" , 
-       title = "Distribution of gains and loses across quintiles")   
+       title = "Distribution of gains and losses across quintiles") +
+  theme(plot.title = element_text(hjust = 0.5))   
 
 ```
 
 ```{r, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results='hide'}
+# THIS IS THE PLOT THAT I OUTPUT FOR THE PAPER (AND THE INITIAL SA)
 # NEED TO MAKE SURE I AM EXPORTING IN SAME DIMENSIONS
-# print(final_fig3)  
-# ggsave("policy_est_bl_204040.png")
+ #print(final_fig3)  
+ #ggsave("policy_est.png")
  # 5.89 x 3.69 in image
 #NEED TO CHECk WHY RIPPLE EFFECTS AFFECT WAGE LOSES
 
@@ -2512,7 +2515,7 @@ final_fig3 <- final_fig3 %>%
 sum( (df$winners - df$losers - df$balance.loss) * df$hhwgt.2016 )
 
 #need to change 3 for median below
-dist.pref.f  <- function(rho, qi, qt) (1 - rho*(qi - qt/2))/sum(1 - rho*(1:qt - qt/2)) * qt
+dist.pref.f  <- function(rho, qi, qt) (1 - rho*(qi - 3))/sum(1 - rho*(1:qt - 3)) * qt
 
  # sum cost a and benefits at the individual level
 final_dec.f <- function(x, df.temp = df) {
@@ -2599,10 +2602,10 @@ $$
 
 Where $D(y_i)$ is the rank function for per capita income $y_{i}$ that returns the decile of income (1 the lowest and 10 the highest), and $\rho$ parametrizes the preferences towards redistribution ($\rho<0$ dislikes redistribution, $\rho>0$ likes redistribution)
 
-```{r SA2, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE}
-#quartz()
-#df <- df.final
-png("sample_pref.png", width=440, height=350)
+```{r SA2, eval=FALSE,echo=FALSE, warning=FALSE, message=FALSE}
+quartz()
+df <- df.final
+png("sample_pref.png", width=2*440, height=2*350, res = 100)
 par(oma = c(0,0,0,0),  mar = c( c(2,2,1,2) + .1))
 plot(seq(-1/4,1/5,by = 0.01),sapply(seq(-1/4,1/5,by = 0.01) ,final_dec.f), type = "l", main = NULL, axes=F, xlab="", ylab="", xlim = c(-0.2, .2))
 axis(side=1, at=c(-0.1), labels=c("Dislikes"))
@@ -2695,7 +2698,8 @@ mod.output.template
 # Remove all data and keep all the functions
 rm(list = setdiff(ls(), lsf.str()))
 
-v0 <-  c(-4.979100,  9.713742)
+v0 <-  c(-5.328055,  9.328055)
+#-5.328055  9.328055
 #v0 <-  c( -5.677396,  9.677396)
 
 #step 0: call the data: CPS, growth data, min wage data and CPS ASEC data
@@ -2960,14 +2964,15 @@ final.plot <- function(df.temp = df) {
                           labels=c("Wage +", "Wage -", "Balance -")) + 
       labs(y = "$/year", 
            x = "Quintiles of per capita income" , 
-           title = "Distribution of gains and loses across quintiles")   
+           title = "Distribution of gains and losses across quintiles") +
+  theme(plot.title = element_text(hjust = 0.5))   
     
     #two outputs of the SA
     return(final_fig3)
 }
 
 ###########################
-###### HERE STARTS THE SA
+###### HERE STARTS THE SA: MODIFY CORRESPONDING PARAMETERS TO REPRODUCE TABLE 1 FROM PAPER
 df <- df_csporg
 results <- SA.part1()
 stats2 <- results[[2]]
@@ -2976,9 +2981,11 @@ delta.e1 <- results[[1]]
 df <- df_asec
 df3 <- SA.part2()
 
-param.factor.1 <- 1
+param.factor.1 <- 1.0
 param.net.benef <- 2e9*1.0
-param.dist.loss <- c(0.01, 0.29, 0.70) #c(0.39567218, 0.53851506, 0.06581275)
+#param.dist.loss <- c(0.01, 0.29, 0.70) #c(0.39567218, 0.53851506, 0.06581275)
+param.dist.loss <- c(0.39567218, 0.53851506, 0.06581275)
+
 
 losses <- with(df3, sum(winners * hhwgt.2016) - 
                  param.factor.1 * sum(losers * hhwgt.2016) ) - param.net.benef
@@ -2997,7 +3004,6 @@ df4 <- df.final
 quintiles <- with(df4,wtd.quantile(x = sq.inc.pc, probs = 1:4/5, weights = hhwgt.2016))
 df4$income.group <- with(df4, findInterval(x = sq.inc.pc, vec =  c(-Inf,quintiles) ))
 p <- final.plot(df.temp = df4)
-quartz()
 print(p)
 
 #    print("Percentage variation relative to base scenario:")
@@ -3069,8 +3075,6 @@ final_fig1 <- df.plot1 %>%
 print(final_fig1)
 ggsave("sa_extrap.png")
 ```
-
-
 
 ```{r SA F.adj, eval=FALSE, echo=FALSE} 
 #param.factor.extrap = 3 * seq(0,1.5, length.out = 10)
@@ -3214,7 +3218,7 @@ df.final <- win.loss.f(losses.pc.temp = losses.pc,
 w1 <- final_dec.f(0.1, df.temp = df.final)  
 w2 <- final_dec.f(-0.1, df.temp = df.final)  
 
-dev.off()
+#dev.off()
 png("sa_DLf.png", width = 4, height = 4, units = 'in', res = 600)
 par(oma=c(2,2,3,0) + 0.1,mar=c(0,0,0,0) + 0.1)
 layout(matrix(c(1,1,1,1,2,3,4,5), 4, 2, byrow = FALSE), widths=c(1,3), heights=c(1,1,1,1))
