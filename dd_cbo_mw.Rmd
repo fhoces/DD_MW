@@ -29,6 +29,8 @@ output:
       }
    } 
   </script>
+/Users/fhocesde/sample_pref.png
+git config --global http.sslCAInfo “/Users/fhocesde/smcacert.crt”
 
 <!-- 
 Following line is to get rpubs to recognize external links-->
