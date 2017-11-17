@@ -1,7 +1,7 @@
 ---
 title: Dynamic Documention for "The Effects of a Minimum-Wage Increase on Employment
   and Family Income"
-author: "Download/Modify/Contribute the analysis [here](https://github.com/fhoces/dd_cbo_mw)"
+author: "Download/Modify/Contribute the analysis [here](https://github.com/fhoces/dd_mw)"
 date: '`r paste("Last edit:", Sys.Date(), sep=" ")`'
 output:
   html_document:
@@ -78,7 +78,7 @@ if (FALSE) {
 # Loading required libraries
 list.of.packages <- c("knitr","foreign", "dplyr", "weights", "survey", "Hmisc", 
                       "openxlsx", "rio", "highr", "XML", "RCurl", "treemap", 
-                      "reshape2", "tidyr", "xtable")
+                      "reshape2", "tidyr", "xtable", "haven")
 
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, repos= "http://cran.cnr.berkeley.edu/") 
@@ -228,7 +228,7 @@ call.cps.org.data <- function(){
     	# unzip the file's contents and store the file name within the temporary directory
     	fn <- unzip( zipfile = tf , overwrite = T )
     }
-    df <- read.dta("cepr_org_2013.dta")
+    df <- haven::read_dta("cepr_org_2013.dta")
   }
   
   # Using NBER ORG data 
@@ -236,9 +236,9 @@ call.cps.org.data <- function(){
     # Checking if working directory contains data, download if not. 
     if ( !("morg13.dta" %in% dir()) ) {
       # Downloading data 53mb
-      df <- read.dta("http://www.nber.org/morg/annual/morg13.dta")
+      df <- haven::read_dta("http://www.nber.org/morg/annual/morg13.dta")
     }
-    df <- read.dta("morg13.dta")
+    df <- haven::read_dta("morg13.dta")
   }
   
   df <- tbl_df(df)
@@ -491,21 +491,25 @@ state.minw <- function(char.year) {
 
 st.minw <- state.minw("2013")
 
-#To get all min wages in one data frame use:
+# To get all min wages in one data frame use:
 # as.data.frame(lapply(1980:2015, function(x) state.minw(as.character(x))) )
 
 
-#CBO makes a forecast of future min wages. We can look at the actual min wage that took place. 
-#If CBO provides their forecast, we could check forecast acuracy. 
-#Min wage from 2016 are not available in the website above. I am hard coding any changes
-#found in wikipedia (https://en.wikipedia.org/wiki/Minimum_wage_in_the_United_States access 5/16/2016):
+# CBO makes a forecast of future min wages. We can look at the actual min wage that took place. 
+# If CBO provides their forecast, we could check forecast acuracy. 
+# Min wage from 2016 are not available in the website above. I am hard coding any changes
+# found in wikipedia (https://en.wikipedia.org/wiki/Minimum_wage_in_the_United_States access 5/16/2016):
 
+# Ther state.minw() has a bug where it will not import DC correctly
 st.minw.2016 <- state.minw("2015")
 st.minw.2016[c("AK"	, "AZ", "CA", "CT"	, "HI"	, "IL", "MA", "MI"	, 
-       "MN"	, "MT" , "NV" , "NE" , "NY"	, "OH"	, "RI", "VT"), ] <- 
+       "MN"	, "MT" , "NV" , "NE" , "NY"	, "OH"	, "RI", "VT", "DC"), ] <- 
           c(  9.75	, 8.05, 10	, 9.6	  , 8.5	  , 8.25, 10	, 8.5	  , 
-      9		  , 8.05 , 8.25 , 9		 , 9		, 8.1	  , 9.6 , 9.6)
+      9		  , 8.05 , 8.25 , 9		 , 9		, 8.1	  , 9.6 , 9.6, 10.50)
 colnames(st.minw.2016) <- "2016"
+
+# Some places report a min wage below the federal one, so we replace
+st.minw.2016[st.minw.2016<7.25] <- 7.25
 
 # Export MW data to Stata
 aux.data <- data.frame("states" = rownames(st.minw),
@@ -560,7 +564,7 @@ workers.gr <- workers.gr.f()
 
 #SAME
 half.gap.f <- function(SA.wage.gr = param.wage.gr, 
-                     SA.base.growth = param.base.growth) {
+                       SA.base.growth = param.base.growth) {
   wage.gr.f(SA.wage.gr) - SA.base.growth 
 }
 half.gap <- half.gap.f()
@@ -598,7 +602,8 @@ wages.final.cps.org.f <- function(df.temp = df,
 
 df <- wages.final.cps.org.f()
 
-# to be done: adjust some states by inflation.
+# to be done: adjust some states by inflation.  
+
 ```  
 
 </div>
@@ -1691,7 +1696,7 @@ call.cps.asec.data <-  function() {
     	# unzip the file's contents and store the file name within the temporary directory
     	fn <- unzip( zipfile = tf ,"cepr_march_2013.dta",  overwrite = T )
     }
-    df <- read.dta("cepr_march_2013.dta")
+    df <- haven::read_dta("cepr_march_2013.dta")
   }
   
   df <- tbl_df(df)
@@ -2676,7 +2681,7 @@ knitr::kable(
 #mod.output.template
 
 ```   
-  <p><a class="btn btn-primary btn-lg" href="https://github.com/fhoces/dd_cbo_mw">Learn more</a></p>
+  <p><a class="btn btn-primary btn-lg" href="https://github.com/fhoces/dd_mw">Learn more</a></p>
 </div>
 
 
