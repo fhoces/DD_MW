@@ -64,7 +64,6 @@ The CBO report describes three policy estimates: the effects of raising the mini
 
 **Note on the code languages (`R` and `Stata`):** The analysis can be replicated using either language, but only R provides the one-click workflow. For `Stata` the reader has to copy and paste the scripts sequentially or excecute [this do file](link to final do file). 
 
-Also add link to video on how to install R. 
 
 ```{r setup, include=FALSE}
 if (FALSE) {
