@@ -171,21 +171,25 @@ param.states.raise <- 1.0
 ```
 
 
-In this companion we attempt to reproduce all the policy estimates of table 1 and 2, and walk the reader through all the details behind it.   
+In this companion we attempt to reproduce all the policy estimates of table 1 and 2, and walk the reader through all the details behind it. At a high level, two key components need to be computed: employment effects and distributional effects. 
 
 
 # Employment effects
 At a general level the effects on employment ($\widehat{\Delta E}$) will be calculated using a more detailed version of the following equation:
 
 $$
-\begin{aligned}
-\widehat{\Delta E} &= N \times \eta \times \% \Delta w  + \text{Other factors}
-\end{aligned}
+\begin{equation}
+\widehat{\Delta E} = N \times \eta \times \% \Delta w  + \text{Other factors}
+\label{eq:1}
+\tag{1}
+\end{equation}
 $$
   
 Where $N$ represents the relevant population, $\eta$ the elasticity of labor demand, $\Delta w$ the relevant percentual variation in wages, and the *Other factors* will encapsulate effects on employment through an increase in the aggregate demand.  
 
-To describe the methodology behind each of those four components we first describe the data used, the wage variable choose, and the procedure used to forecast the wage and population distribution of 2016 using data from 2013.  
+We first describe some general methodological considerations and then describe how to compute each component from equation $\eqref{eq:1}$  
+
+To describe the methodology behind each of those four components we first describe the data used, the chosen wage variable, and the procedure used to forecast the wage and population distribution of 2016 using data from 2013.  
 
 
 ## Data, wages, and forecast  
