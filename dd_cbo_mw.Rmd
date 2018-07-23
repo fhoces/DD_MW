@@ -15,6 +15,10 @@ output:
     code_folding: show
 ---
 
+<!-- 
+The following chunk is to hide/display code with a specific title ('R' and 'Stata')
+-->
+
   <script language="javascript"> 
     function toggle(num) {
       var ele = document.getElementById("toggleText" + num);
@@ -66,25 +70,17 @@ The CBO report describes three policy estimates: the effects of raising the mini
 
 
 ```{r setup, include=FALSE}
-if (FALSE) {
-  if (Sys.info()["sysname"] == "Darwin") {
-    setwd("/Users/fhoces/dissertation/Replication")
-  }else{
-    setwd("C:/Users/fhocesde/Documents/replication")
-  }
-}
-
 # Loading required libraries
 list.of.packages <- c("knitr","foreign", "dplyr", "weights", "survey", "Hmisc", 
                       "openxlsx", "rio", "highr", "XML", "RCurl", "treemap", 
-                      "reshape2", "tidyr", "xtable", "haven")
+                      "reshape2", "tidyr", "xtable", "haven", "here")
 
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, repos= "http://cran.cnr.berkeley.edu/") 
 
 lapply(list.of.packages, require, character.only = TRUE)
 # Setting working directory
-
+library(here)
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(cache = FALSE)
 
@@ -104,7 +100,6 @@ colnames(output.template1) <- "Effects/Policy Estimates"
 
 output.template1[,"Effects/Policy Estimates" ] <- c("31", "~5", "~24" , "2", "16.5", "0.5")
 
-
 #Some distributional effects
 output.template2 <- matrix(" ???",nrow = 2, ncol = 4)
 rownames(output.template2) <- c("Balance losses (bns of $)", "Net effect (bns of $)")
@@ -112,8 +107,6 @@ colnames(output.template2) <- c("<1PL", "[1PL, 3PL)", "[3PL, 6PL)", ">6PL")
 
 output.template2["Balance losses (bns of $)", ] <- c("~0.3", "~3.4", "~3.4", "~17")
 output.template2["Net effect (bns of $)", ] <- c("5", "12", "2", "-17")
-
-
 
 knitr::kable(
   list(
