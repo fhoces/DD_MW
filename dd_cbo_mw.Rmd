@@ -13,6 +13,8 @@ output:
     smooth_scroll: false
     number_sections: true
     code_folding: show
+editor_options: 
+  chunk_output_type: console
 ---
 
 <!-- 
@@ -187,17 +189,13 @@ $$
   
 Where $N$ represents the relevant population, $\eta$ the elasticity of labor demand, $\Delta w$ the relevant percentual variation in wages, and the *Other factors* will encapsulate effects on employment through an increase in the aggregate demand.  
 
-We first describe some general methodological considerations and then describe how to compute each component from equation $\eqref{eq:1}$  
-
-To describe the methodology behind each of those four components we first describe the data used, the chosen wage variable, and the procedure used to forecast the wage and population distribution of 2016 using data from 2013.  
-
+We first describe some general methodological considerations and then describe how to compute each component from equation $\eqref{eq:1}$.  
 
 ## Data, wages, and forecast  
-To simulate the policy effects we need the distribution of wages and employment under the status quo. From the perspective of 2013, this implies forecasting to 2016 data on employment and wages. 
-
+We describe the data used, the chosen wage variable, and the procedure used to forecast the wage and population distribution of 2016 using data from 2013.  
 
 ### Data
-The Current Population Survey (CPS) was used to compute the effects on employment. From the analysis in the section on distributional effects we can deduce that the data corresponds to the Outgoing Rotation Group (ORG). CPS is a monthly cross sectional survey. The same individual is interviewed eight times over a period of 12 months. The interviews take place in the first and last 4 months of that period. By the 4th and 12th interview, individuals are asked detailed information on earnings. The CPS ORG file contains the information on this interviews for a given year. We analyze the data for 2013.   
+The Current Population Survey (CPS) was used to compute the effects on employment. From the analysis described in the section on distributional effects of the original report, we can deduce that the data corresponds to the Outgoing Rotation Group (ORG). CPS is a monthly cross sectional survey. The same individual is interviewed eight times over a period of 12 months. The interviews take place in the first and last 4 months of that period. By the 4th and 12th interview, individuals are asked detailed information on earnings. The CPS ORG file contains the information on this interviews for a given year. We analyze the data for 2013.   
 
 Currently three versions of these data sets can be found online: [CPS raw files](http://thedataweb.rm.census.gov/ftp/cps_ftp.html#cpsbasic), [ORG NBER](http://www.nber.org/data/morg.html) and [ORG CEPR](http://ceprdata.org/cps-uniform-data-extracts/cps-outgoing-rotation-group/). The analysis will be performed using the CPER ORG data base.
 
@@ -273,22 +271,25 @@ sum(orgwgt)
 ### Wage variable
 We assume no further adjustments like imputation for top coding, trimming, excluding overtime/commissions, or imputation of usual hours for ''hours vary'' respondents. The CEPR ORG data includes several wage variables ([described here](http://ceprdata.org/cps-uniform-data-extracts/cps-outgoing-rotation-group/)). The wage variable that best matches the description above is `wage3`. This variable measures earnings for hourly workers (excluding overtime, tips, commissions and bonuses -otc-) and non hourly workers (including otc). According to CEPR "...attempts to match the NBER’s recommendation for the most consistent hourly wage series from 1979 to the present"
 
-### Wage adjustment
-An adjustment was made to the wage of all the workers that did not report an hourly wage (`wage3` is estimated as usual salary per self-reported pay-period over usual hours per pay-period). In order to reduce the measurement error in those wages, we follow the methodology proposed in [this paper](https://www.aeaweb.org/articles?id=10.1257/aer.96.3.461) and compute the adjusted wage as a weighted average of the original wage and the average wage of workers with similar characteristics. 
+### Note on CBO's Wage Adjustment
+In the original report from CBO, an adjustment was made to the wage of all the workers that did not report an hourly wage (`wage3` is estimated as usual salary per self-reported pay-period over usual hours per pay-period). The goal was to reduce the measurement error in those wages, following the methodology proposed in [this paper](https://www.aeaweb.org/articles?id=10.1257/aer.96.3.461) and compute the adjusted wage as a weighted average of the original wage and the average wage of workers with similar characteristics. 
 
 
 $$
-\begin{aligned}
-w_{ig} &= \alpha w^{raw}_{ig} - (1 - \alpha)  \overline{w^{raw}_{g}} \label{samp.eq1} \\
-\text{with:    } \quad \overline{w^{raw}_{g}} &= \frac{\sum_{g} w^{raw}_{ig} }{N_{g}}  \nonumber 
-\end{aligned}
+\begin{equation}
+w_{ig} = \alpha w^{raw}_{ig} - (1 - \alpha)  \overline{w^{raw}_{g}} \\
+\text{with:    } \quad \overline{w^{raw}_{g}} = \frac{\sum_{g} w^{raw}_{ig} }{N_{g}}  
+\label{eq:2}
+\tag{2}
+\end{equation}
 $$ 
   
-Additional information needed from CBO: $\alpha$ and $G$.    
-
+To implement such adjustments into this dynamic document, we requiere information from CBO on: $\alpha$ and $G$ in $\eqref{eq:2}$.    
 
 ### Wage forecast  
-With this data-variable-adjustment we forecast the wage distribution, from 2013 to 2016 in the following way:
+To simulate the policy effects we need the distribution of wages and employment under the status quo. From the perspective of 2013, this implies forecasting to 2016 data on employment and wages available in 2013. 
+
+We forecast the wage distribution, from 2013 to 2016 in the following way:
 
 #### Growth adjustments
 We assume that the growth forecasts were taken from the 10-Year Economic Projections from CBO ([this website](https://www.cbo.gov/about/products/budget_economic_data)). Annualized growth rates for the number of workers $g_{workers}$, and nominal wage per $g_{wages}$ worker where computed as follows:  
@@ -300,7 +301,7 @@ $$
 \end{aligned}
 $$ 
 
-The report assumes higher wage growth for high wages than low wages. To create different rates of growth in wage, we compute different wage growth rates for each decile of wage. The increments across deciles were constant and the set to match a final lowest decile with a yearly growth rate of 2.9%.  
+The original report assumes higher wage growth for high wages than low wages. To create different rates of growth in wage, we compute different wage growth rates for each decile of wage. The increments across deciles were constant and the set to match a final lowest decile with a yearly growth rate of 2.9%.  
 
 The adjustment over number of workers was made through the weight variable `final_weights` (multiplying it by the growth rate) whereas the `wage3` variable was multiplied by the forecast growth rate of per worker wages.   
 
@@ -311,14 +312,69 @@ The adjustment over number of workers was made through the weight variable `fina
 
 ```{r Getting forecast data, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results = "hide"}
 get.gr.data <- function() {
-  # All projections data comes from this website: https://www.cbo.gov/about/products/budget_economic_data
+  # All projections data comes from this website: https://www.cbo.gov/about/products/budget_economic_data/
   # name of the files that contain projections from CBO
-  early.2016  <- "51135-2016-01-Economic%20Projections.xlsx" 
-  late.2015   <- "51135-2015-08-EconomicProjections.xlsx"
-  early.2015  <- "51135-2015-01-EconomicProjections.xlsx" 
-  late.2014   <- "51135-2014-08-EconomicProjections.xlsx"
-  early.2014  <- "51135-2014-02-EconomicProjections.xlsx"
   early.2013  <- "51135-2013-02-EconomicProjections.xls"  #there is no late 2013 report
+  
+##########################  
+  # 1 - download data and read from xls (originally downloaded from CBO, then stored in dataverse for stability)
+    if ( !("forec_in2013.xls" %in% dir()) ) {
+      download.file(url = "https://www.cbo.gov/sites/default/files/51135-2013-02-EconomicProjections.xls", 
+                    destfile = "forec_in2013.xls", mode="wb")
+    }
+  # if  ( !(require(XLConnect)) ) install.packages("XLConnect", repos= "http://cran.cnr.berkeley.edu/")
+    trends.df <- rio::import( "forec_in2013.xls" , sheet= "2. Calendar Year")
+    
+  # 2 - extract relevant cols and rows
+  # Get column of all projections for 2013: get data from 2012 up to 2019)
+  sel.col <- which(trends.df==2012, arr.ind = TRUE)[2] 
+  sel.col <- sel.col:(sel.col+7)
+  # Get row with all projections for wages and salaries in billions of (nominal) dollars
+  # Note: the excel file always contains two rows with the words "wage[s]" and "salar[ies|y]", 
+  # we are looking for the second one (corresponding to Wages and Salaries under Income)
+  sel.row1 <- unique(
+                      apply(trends.df,
+                            2, function(x)  grep("Wage.*Salar.*",x ) )
+                      )[[2]]
+  sel.row1 <- sel.row1[2]
+  
+  # Get row with all projections for number people employed (in millions)
+  sel.row2 <- which(trends.df=="Employment, Civilian, 16 Years or Older (Household Survey)", arr.ind = TRUE)[1]
+  # Get Price Index. CBO uses Personal Consumption Expenditures (PCE)
+  sel.row3 <- unique(
+                      apply(trends.df,
+                            2, function(x)  grep("Price Index, Personal Consumption", x ) )
+                    )[[2]]
+
+  #Keep only rows and colums identified above
+  trends.df <- trends.df[c(sel.row1, sel.row2, sel.row3) , sel.col]
+  
+  
+  # 3 - compute growth rates. 
+    
+  #Labeling and formating
+  colnames(trends.df) <- 2012:(2012+7)
+  trends.df <- apply(trends.df, 2, as.numeric)
+  row.names(trends.df) <- c( "wages(total)", "workers", "Price Index, Personal Consumption")
+  
+  #Generate wage and non-wage income per worker
+  trends.df <- rbind( trends.df ,  
+                      (trends.df["wages(total)", ] * 1e9 ) / ( trends.df["workers", ] * 1e6) )
+  
+  row.names(trends.df) <- c( "wages(total)", "workers", "Price Index, Personal Consumption",
+                              "wages per worker")
+  
+  # Transpose the data
+  trends.df <- t(trends.df)
+  
+  # Define a new data set with the anual growth rate of each variable over time
+  growth.df <- trends.df/lag(trends.df,1) - 1 
+  
+  # 4 - compute compounded growth rates over multiple years
+  prod((growth.df[, var1 ] + 1)[as.character(init.year:last.year)])
+  
+  #gr.factor("wages per worker", 2014, 2016)
+ ################################################## 
   
   # This function loads the data for a given report
   get.growth.data <- function(x){
@@ -342,6 +398,7 @@ get.gr.data <- function() {
   
   # Get column of all projections for 2013: get data from 2012 up to 2019)
   sel.col <- which(trends.df==2012, arr.ind = TRUE)[2] 
+  sel.col <- sel.col:(sel.col+7)
   # Get row with all projections for wages and salaries in billions of (nominal) dollars
   # Note: the excel file always contains two rows with the words "wage[s]" and "salar[ies|y]", 
   # we are looking for the second one (corresponding to Wages and Salaries under Income)
@@ -353,14 +410,7 @@ get.gr.data <- function() {
   
   # Get row with all projections for number people employed (in millions)
   sel.row2 <- which(trends.df=="Employment, Civilian, 16 Years or Older (Household Survey)", arr.ind = TRUE)[1]
-  # FH: I would use the following. But CBO uses the Price Index, Personal Consumption Expenditures (PCE)
-  # sel.row3 <- unique(
-  #                     apply(trends.df,
-  #                           2, function(x)  grep("Nonwage Income", x ) )
-  #                   )[[2]]
-  # 
-  #
-  
+  # Get Price Index. CBO uses Personal Consumption Expenditures (PCE)
   sel.row3 <- unique(
                       apply(trends.df,
                             2, function(x)  grep("Price Index, Personal Consumption", x ) )
