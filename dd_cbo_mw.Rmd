@@ -73,9 +73,9 @@ The CBO report describes three policy estimates: the effects of raising the mini
 
 ```{r setup, include=FALSE}
 # Loading required libraries
-list.of.packages <- c("knitr","foreign", "dplyr", "weights", "survey", "Hmisc", 
+list.of.packages <- c("foreign", "weights", "survey", "Hmisc", 
                       "openxlsx", "rio", "highr", "XML", "RCurl", "treemap", 
-                      "reshape2", "tidyr", "xtable", "haven", "here")
+                      "reshape2", "tidyverse", "xtable", "haven", "here")
 
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, repos= "http://cran.cnr.berkeley.edu/") 
@@ -83,6 +83,14 @@ if(length(new.packages)) install.packages(new.packages, repos= "http://cran.cnr.
 lapply(list.of.packages, require, character.only = TRUE)
 # Setting working directory
 library(here)
+
+# Setting up workflow
+for (folder in c("rawdata", "data", "documentation", "output", "paper", "scripts")) {
+  if ( !(folder %in% dir()) ) {
+    dir.create(folder)    
+  }
+}
+
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(cache = FALSE)
 
@@ -212,7 +220,7 @@ call.cps.org.data <- function(){
   # Using CEPR ORG data 
   if (data_use == "CPER_ORG") {
   # Checking if working directory contains data, download if not. 
-    if ( !("cepr_org_2013.dta" %in% dir()) ) {
+    if ( !("cepr_org_2013.dta" %in% dir(path = "./rawdata/") ) ) {
     	# create name of file to store data
     	tf <- "cepr_org_2013.zip"
     
@@ -220,10 +228,12 @@ call.cps.org.data <- function(){
     	download.file(url =  "http://ceprdata.org/wp-content/cps/data/cepr_org_2013.zip", tf , mode = "wb" )
     
     	# unzip the file's contents and store the file name within the temporary directory
-    	fn <- unzip( zipfile = tf , overwrite = T )
+    	fn <- unzip(exdir = "./rawdata/", zipfile = tf , overwrite = T )
     }
-    df <- haven::read_dta("cepr_org_2013.dta")
+    df <- haven::read_dta("./rawdata/cepr_org_2013.dta")
   }
+#   if ( !("CBO_forec_in2013.csv" %in% dir(path = "./rawdata/") ) ) {
+  
   
   # Using NBER ORG data 
   if (data_use == "NBER_ORG") {
@@ -311,21 +321,26 @@ The adjustment over number of workers was made through the weight variable `fina
 <div id="toggleText3" style="display: none">      
 
 ```{r Getting forecast data, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results = "hide"}
-get.gr.data <- function() {
-  # All projections data comes from this website: https://www.cbo.gov/about/products/budget_economic_data/
-  # name of the files that contain projections from CBO
-  early.2013  <- "51135-2013-02-EconomicProjections.xls"  #there is no late 2013 report
+
+dwld_and_write <- function()  {
+    # Check if csv file is in local machine. Download if not.
+    if ( !("CBO_forec_in2013.csv" %in% dir(path = "./rawdata/") ) ) {
+    # download data and read from xls (originally downloaded from CBO, then stored in dataverse for stability)
+    download.file(url = "https://www.cbo.gov/sites/default/files/51135-2013-02-EconomicProjections.xls", 
+                      destfile = "forec_in2013.xls", mode="wb")
   
-##########################  
-  # 1 - download data and read from xls (originally downloaded from CBO, then stored in dataverse for stability)
-    if ( !("forec_in2013.xls" %in% dir()) ) {
-      download.file(url = "https://www.cbo.gov/sites/default/files/51135-2013-02-EconomicProjections.xls", 
-                    destfile = "forec_in2013.xls", mode="wb")
-    }
-  # if  ( !(require(XLConnect)) ) install.packages("XLConnect", repos= "http://cran.cnr.berkeley.edu/")
+    # might require this line in a fresh run: 
+    # if  ( !(require(XLConnect)) ) install.packages("XLConnect", repos= "http://cran.cnr.berkeley.edu/")
+    # import from xls to data frame
     trends.df <- rio::import( "forec_in2013.xls" , sheet= "2. Calendar Year")
     
-  # 2 - extract relevant cols and rows
+    # Save as csv in raw data. 
+    write_csv(trends.df, path = "rawdata/CBO_forec_in2013.csv")
+  }
+ return(read_csv(file = "rawdata/CBO_forec_in2013.csv"))
+}
+
+select_vals <- function(trends.df) {
   # Get column of all projections for 2013: get data from 2012 up to 2019)
   sel.col <- which(trends.df==2012, arr.ind = TRUE)[2] 
   sel.col <- sel.col:(sel.col+7)
@@ -334,7 +349,7 @@ get.gr.data <- function() {
   # we are looking for the second one (corresponding to Wages and Salaries under Income)
   sel.row1 <- unique(
                       apply(trends.df,
-                            2, function(x)  grep("Wage.*Salar.*",x ) )
+                            2, function(x)  grep("Wage.*Salar.*", x ) )
                       )[[2]]
   sel.row1 <- sel.row1[2]
   
@@ -347,108 +362,46 @@ get.gr.data <- function() {
                     )[[2]]
 
   #Keep only rows and colums identified above
-  trends.df <- trends.df[c(sel.row1, sel.row2, sel.row3) , sel.col]
+  clean.df <- trends.df[c(sel.row1, sel.row2, sel.row3) , sel.col]
+  return(clean.df)
+ }  
   
-  
-  # 3 - compute growth rates. 
+compute_rates <- function(var.df) {
+  # Compute growth rates. 
     
   #Labeling and formating
-  colnames(trends.df) <- 2012:(2012+7)
-  trends.df <- apply(trends.df, 2, as.numeric)
-  row.names(trends.df) <- c( "wages(total)", "workers", "Price Index, Personal Consumption")
+  colnames(var.df) <- 2012:(2012+7)
+  var.df <- apply(var.df, 2, as.numeric)
+  row.names(var.df) <- c( "wages(total)", "workers", "Price Index, Personal Consumption")
   
   #Generate wage and non-wage income per worker
-  trends.df <- rbind( trends.df ,  
-                      (trends.df["wages(total)", ] * 1e9 ) / ( trends.df["workers", ] * 1e6) )
+  var.df <- rbind( var.df ,  
+                      (var.df["wages(total)", ] * 1e9 ) / ( var.df["workers", ] * 1e6) )
   
-  row.names(trends.df) <- c( "wages(total)", "workers", "Price Index, Personal Consumption",
-                              "wages per worker")
-  
+  row.names(var.df) <- c("wages(total)", "workers", "Price Index, 
+                          Personal Consumption", "wages per worker")
   # Transpose the data
-  trends.df <- t(trends.df)
+  var.df <- t(var.df)
   
   # Define a new data set with the anual growth rate of each variable over time
-  growth.df <- trends.df/lag(trends.df,1) - 1 
-  
-  # 4 - compute compounded growth rates over multiple years
-  prod((growth.df[, var1 ] + 1)[as.character(init.year:last.year)])
-  
-  #gr.factor("wages per worker", 2014, 2016)
- ################################################## 
-  
-  # This function loads the data for a given report
-  get.growth.data <- function(x){
-  # Checking if working directory contains data, download if not. 
-    if ( !(x %in% dir()) ) {
-      download.file(url = paste("https://www.cbo.gov/sites/default/files/", 
-                                x , sep = ""), 
-                    destfile = x, mode="wb")
-    }
-    if (x == early.2013) {
-      if  ( !(require(XLConnect)) ) install.packages("XLConnect", repos= "http://cran.cnr.berkeley.edu/")
-        out.df <- rio::import( x , sheet= "2. Calendar Year")
-    } else {
-        out.df <- read.xlsx( x , sheet = "2. Calendar Year")
-    }
-    return(out.df)
+  return( var.df/lag(var.df,1) - 1 )
   }
-  
-  # Working with projections from 2013
-  trends.df <- get.growth.data( early.2013 )
-  
-  # Get column of all projections for 2013: get data from 2012 up to 2019)
-  sel.col <- which(trends.df==2012, arr.ind = TRUE)[2] 
-  sel.col <- sel.col:(sel.col+7)
-  # Get row with all projections for wages and salaries in billions of (nominal) dollars
-  # Note: the excel file always contains two rows with the words "wage[s]" and "salar[ies|y]", 
-  # we are looking for the second one (corresponding to Wages and Salaries under Income)
-  sel.row1 <- unique(
-                      apply(trends.df,
-                            2, function(x)  grep("Wage.*Salar.*",x ) )
-                      )[[2]]
-  sel.row1 <- sel.row1[2]
-  
-  # Get row with all projections for number people employed (in millions)
-  sel.row2 <- which(trends.df=="Employment, Civilian, 16 Years or Older (Household Survey)", arr.ind = TRUE)[1]
-  # Get Price Index. CBO uses Personal Consumption Expenditures (PCE)
-  sel.row3 <- unique(
-                      apply(trends.df,
-                            2, function(x)  grep("Price Index, Personal Consumption", x ) )
-                    )[[2]]
-  
-  
-  #Keep only rows and colums identified above
-  trends.df <- trends.df[c(sel.row1, sel.row2, sel.row3) , sel.col:(sel.col+7)]
-  
-  #Labeling and formating
-  colnames(trends.df) <- 2012:(2012+7)
-  trends.df <- apply(trends.df, 2, as.numeric)
-  row.names(trends.df) <- c( "wages(total)", "workers", "Price Index, Personal Consumption")
-  
-  #Generate wage and non-wage income per worker
-  trends.df <- rbind( trends.df ,  
-                      (trends.df["wages(total)", ] * 1e9 ) / ( trends.df["workers", ] * 1e6) )
-  
-  row.names(trends.df) <- c( "wages(total)", "workers", "Price Index, Personal Consumption",
-                              "wages per worker")
-  
-  #Transpose the data
-  trends.df <- t(trends.df)
-  
-  # Define a new data set with the anual growth rate of each variable over time
-  growth.df <- trends.df/lag(trends.df,1) - 1 
-  
-  return(growth.df)
-}
+
+# Growth rate over several years. This function will be called several times down below. 
+gr.factor <- function(var1, init.year, last.year) {
 # Compute the compounded growth factor for a given variable in a time interval
 # For example growth factor between years 1,2 and 3 will be:
 # (1+growth_rate_yr1) * (1+growth_rate_yr2) * (1+growth_rate_yr3)
-growth.df <- get.gr.data()
+    if (init.year == 2012) {init.year <- 2013}
+    rates <- apply( growth.df[as.character(init.year:last.year),] + 1, 2, prod )
+    return(rates[var1])
+}             
+    
+trends.df <- dwld_and_write()    
+clean.df <- select_vals(trends.df)
+growth.df <- compute_rates(clean.df)
 
-gr.factor <- function(var1, init.year, last.year) {
-  if (init.year == 2012) {init.year <- 2013}
-  prod((growth.df[, var1 ] + 1)[as.character(init.year:last.year)])
-} 
+#gr.factor("wages per worker", 2014, 2016)
 ``` 
 
 </div>
@@ -468,13 +421,13 @@ scalar workers_gr = 0.01550989
 
 #### ACA adjustments  
 
-[Not done yet]  
+In forecasting the wages, the CBO report describes that some wages will be reduced in response to the individual mandate from the Affordable Care Act. Given that no details of the adjustments are described in the report, we do not incorporate them in this dynamic document. 
 
 #### State level minimum wage adjustments   
 
 CBO had to predict the future changes in the state level minimum wages. We use the actual values implemented by each state. The data comes from the Department of Labor ([here](https://www.dol.gov/whd/state/stateMinWageHis.htm)). 
 
-Whenever the predicted wages were below the 2016 state minimum wage they were replace by it. 
+Whenever the predicted wages were below the 2016 federal minimum wage they were replace by it. 
 
 **Important assumption:** when imputing state level min wages, we assume that no effects on employment where incorporated. 
 
@@ -492,25 +445,41 @@ if ( !("minwage" %in% dir()) ) {
   xData <- getURL(fileURL)
   aux.1 <- readHTMLTable(xData)
   
-  min.wage.data <- cbind(aux.1[[1]], aux.1[[2]][,-1], 
-                         aux.1[[3]][,-1], aux.1[[4]][,-1], 
-                         aux.1[[5]][1:55,-1])
-  min.wage.data <- min.wage.data[, - (32:38)]
-  colnames(min.wage.data) <- c(gsub("(.*)([0-9]{4})(.*)","\\2",
-                                    names(min.wage.data))[-c(30, 31)], 
-                               "2014", "2015")
-  rownames(min.wage.data) <- min.wage.data[,1]
-  min.wage.data <- min.wage.data[,-1]
+  tbls <- html_nodes(fileURL, "table")
+  
+  library("rvest")
 
-  # This part was hard coded, important to check over and over. 
-  rownames(min.wage.data) <- c("Federal","AK","AL","AR","AZ","CA","CO","CT",
+  
+fileURL <- "https://www.dol.gov/whd/state/stateMinWageHis.htm"
+webpage <- read_html(fileURL)
+tbls <- html_nodes(webpage, "table")
+asd <- html_table(tbls, fill = TRUE)
+df1 <- asd[[3]]
+df2 <- asd[[4]][,1:5]
+df3 <- left_join(df1, df2, "State or other\r\n      jurisdiction")
+df3$states <- c("Federal","AL","AK","AZ","AR","CA","CO","CT",
                             "DE","FL","GA","HI","ID","IL","IN","IA","KS","KY",
                             "LA","ME","MD","MA","MI","MN","MS","MO",
                             "MT","NE","NV","NH","NJ","NM","NY","NC",
                             "ND","OH","OK","OR","PA","RI","SC","SD",
                             "TN","TX","UT","VT","VA","WA","WV","WI",
                             "WY","DC", "Guam", "PR", "USVI")
-  
+#remove states long name
+df3 <- df3[,-1]
+df4 <- df3 %>% select(-"states") 
+for (year in as.character(2007:2017)) {
+  aux2 <- gsub("[^\\d |^\\. |-]+", "",  df4[, year], perl = TRUE)
+  df4[, year] <- unlist(lapply(str_split(aux2, "-"), function(x) max(as.numeric(x))))
+}
+df4 <- cbind(df3$states, df4)  
+
+
+
+
+  rownames(min.wage.data) <- min.wage.data[,1]
+  min.wage.data <- min.wage.data[,-1]
+
+ 
   #Save all min wage data in a single csv file
   saveRDS(min.wage.data, "minwage")
 }
