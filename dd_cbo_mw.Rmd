@@ -232,9 +232,7 @@ call.cps.org.data <- function(){
     }
     df <- haven::read_dta("./rawdata/cepr_org_2013.dta")
   }
-#   if ( !("CBO_forec_in2013.csv" %in% dir(path = "./rawdata/") ) ) {
-  
-  
+
   # Using NBER ORG data 
   if (data_use == "NBER_ORG") {
     # Checking if working directory contains data, download if not. 
@@ -452,7 +450,7 @@ dwld_and_write_d2 <- function() {
     df1 <- aux1[[4]]
     df2 <- aux1[[5]][,1:5]
     df3 <- left_join(df1, df2, "State or other\r\n      jurisdiction")
-    df3 <- rename(df3, State = "State or other\r\n      jurisdiction")
+    colnames(df3) <- c("State", paste("y", 2007:2017, sep = ""))
     write_csv(df3, path = "rawdata/state_mw.csv")
   }
   return(read_csv(file = "rawdata/state_mw.csv"))
@@ -468,23 +466,36 @@ clean_d2 <- function(df1 = state_mw_raw) {
   b <- file.info("./data/state_mw_clean.csv")$ctime
   if (a > b | is.na(b))  {
     # remove states long name
+    df1 <- df1 %>% filter(State != "Guam" & State != "Puerto \r\n      Rico" & State != "U.S. \r\n      Virgin Islands" )
     df1$states <- c("Federal","AL","AK","AZ","AR","CA","CO","CT",
                                 "DE","FL","GA","HI","ID","IL","IN","IA","KS","KY",
                                 "LA","ME","MD","MA","MI","MN","MS","MO",
                                 "MT","NE","NV","NH","NJ","NM","NY","NC",
                                 "ND","OH","OK","OR","PA","RI","SC","SD",
                                 "TN","TX","UT","VT","VA","WA","WV","WI",
-                                "WY","DC", "Guam", "PR", "USVI")
+                                "WY","DC")
+ 
+    
+    df1$states_codes_cps <- c(NA, 63, 94, 86, 71, 93, 84, 16, 51, 59, 58, 95, 82, 
+                              33, 32, 42, 47, 61, 72, 11, 52, 14, 34, 41, 64, 43, 
+                              81, 46, 88, 12, 22, 85, 21, 56, 44, 31, 73, 92, 23, 
+                              15, 57, 45, 62, 74, 87, 13, 54, 91, 55, 35, 83, 53)                                         
+
     df1 <- df1[,-which(colnames(df1)=="State")]
-    df2 <- df1 %>% select(-"states")
+    df2 <- df1 %>% select(-c("states", "states_codes_cps"))
+    
     # removing text from numeric values of MW
-    for (year in as.character(2007:2017)) {
+    for (year in paste("y", 2007:2017, sep = "")) {
       aux2 <- sapply(df2[, year], function(x) gsub("[^\\d |^\\. |-]+", "", x , perl = TRUE))
       df2[, year] <- unlist(lapply(str_split(aux2, "-"), function(x) max(as.numeric(x))))
-    }
-    df2 <- cbind(df1$states, df2)
-    # Some places report a min wage below the federal one, so we replace
-    df2[df2<7.25 | is.na(df2)] <- 7.25
+      # Some states report a min wage below the federal one, so we replace
+      fed_min <- as.numeric(df2[1, year])
+      df2[, year] <- replace(df2[, year], 
+                             df2[, year] < fed_min | is.na(df2[, year]), 
+                             fed_min)    
+      }
+    
+    df2 <- cbind("state" = df1$states,"state_co" = df1$states_codes_cps, df2)
     write_csv(df2, path = "data/state_mw_clean.csv")
   }
   return(read_csv(file = "data/state_mw_clean.csv"))
@@ -519,7 +530,7 @@ restore
 <div id="toggleText7" style="display: none">  
 
 ```{r Adjusting wages to 2016 , eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results = "hide"}
-#GENERAL NOTE FOR THIS SECTION: the analysis perfomed here is the same as the one with CPS ASEC, so it should be better to wrap it in a function that is called twice to. This way I can make sure that the sensitivity analysis works everywhere. 
+#GENERAL NOTE FOR THIS SECTION: the analysis perfomed here is the same as the one with CPS ASEC, so it should be better to wrap it in a function that is called twice. This way I can make sure that the sensitivity analysis works everywhere. 
 
 #Wage adjutsment
 
@@ -532,30 +543,37 @@ restore
 wage.gr.f <- function(SA.wage.gr = param.wage.gr) {
   ( ( gr.factor("wages per worker", 2014, 2016) )^(1/3) - 1 ) * SA.wage.gr
 }
+
 wage.gr <- wage.gr.f()
 
 workers.gr.f <- function(SA.worker.gr = param.worker.gr) {
   ( ( gr.factor("workers", 2014, 2016) )^(1/3) - 1 ) * SA.worker.gr
 }
+
 workers.gr <- workers.gr.f()  
 
-#SAME
+# SAME
+# Compute the gap between average wage growth and the growth of the lowest decile (assume by CBO)
 half.gap.f <- function(SA.wage.gr = param.wage.gr, 
                        SA.base.growth = param.base.growth) {
   wage.gr.f(SA.wage.gr) - SA.base.growth 
 }
+
 half.gap <- half.gap.f()
 
+# 10 wage growth bins starting from lowest assumed value to 2 times the gap computed above 
 wage.gr.bins.f <- function( SA.base.growth = param.base.growth,
                             SA.wage.gr = param.wage.gr) {
   bins <- seq(SA.base.growth, wage.gr.f(SA.wage.gr) + 
         half.gap.f(SA.wage.gr,SA.base.growth), length.out = 10)
   return(bins)
 }
+
 wage.gr.bins <- wage.gr.bins.f()
 # CAUTION: DO NOT apply 'ntile()' fn from dplry as is will split ties differently than 'cut()' and results will not
 # be comparable to STATA. 
-#NOT THE SAME (power of 3 intead of 4)
+
+# NOT THE SAME (power of 3 intead of 4)
 
 # Here we adjust min wages
 # SAME
@@ -564,6 +582,7 @@ wages.final.cps.org.f <- function(df.temp = df,
                                   wage.gr.bins.temp = wage.gr.bins,
                                   SA.states.raise = param.states.raise,
                                   SA.wages = param.wages) {
+    # Compute deciles of wages
     aux.var  <- wtd.quantile(x = df.temp$wage3, 
                              probs = 1:9/10,weights = df.temp$final_weights)
     df.temp <- df.temp %>%
@@ -572,14 +591,18 @@ wages.final.cps.org.f <- function(df.temp = df,
                 "w3.adj1" =  wage3 * ( 1 + wage.gr.bins.temp[w3.deciles] )^3, 
                 "wages.final" = ifelse(w3.adj1> st.minw.2016[state,] * SA.states.raise,
                                   w3.adj1,
-                                  st.minw.2016[state,] * SA.states.raise)* SA.wages  ) 
+                                  st.minw.2016[state,] * SA.states.raise) * SA.wages  ) 
 
     return(df.temp)
     }
+st.minw.2016 <- state_min_w %>% select( c( "state_co", "y2016", "state") )%>% rename(state_la = state, state = state_co)
+
+df.temp1 <- df.temp %>% mutate(state_la = as.character(as_factor(state)), state = as.numeric(state))
+
+left_join(df.temp1,st.minw.2016, "state") %>% select(contains("state")) %>% View()
+
 
 df <- wages.final.cps.org.f()
-
-# to be done: adjust some states by inflation.  
 
 ```  
 
