@@ -91,6 +91,8 @@ for (folder in c("rawdata", "data", "documentation", "output", "paper", "scripts
   }
 }
 
+## NEED TO ADD CHECKPOINT
+
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(cache = FALSE)
 
@@ -718,171 +720,144 @@ df <- get.pop.int()
 
 # Tables 1 - 4 where constructed to look at the data. Only table 4 is shown in the final output 
 
+# Table 1: DESCRIBE
 # To compute the new total of workers we multiply the original weigths by the growth rate. 
-table_1  <- df  %>% 
-   summarise("(1) Total" =
-               sum(final_weights, na.rm = TRUE), 
-             "(2) Employed" = 
-               sum( final_weights * (empl == 1), na.rm = TRUE), 
-             "(3) Salary (among employed)" = 
-               sum(final_weights * (empl == 1 &      #Salary worker if 
-               (selfinc == 0 & selfemp == 0))        #not self employed or     
-                , na.rm = TRUE),                     #self incorp.
+f_table1 <- function(var_name) {
+  var1 <- dplyr::enquo(var_name)
+  table_1 <- df  %>% 
+     summarise("(1) Total" =
+                 sum(!!var1, na.rm = TRUE), 
+               "(2) Employed" = 
+                 sum( !!var1 * (empl == 1), na.rm = TRUE), 
+               "(3) Salary (among employed)" = 
+                 sum(!!var1 * (empl == 1 &      #Salary worker if 
+                 (selfinc == 0 & selfemp == 0))        #not self employed or     
+                  , na.rm = TRUE),                     #self incorp.
+  
+               "(4) Not Paid hourly (among salary)" = 
+                 sum(!!var1 * (empl == 1 &       # Not paid hourly if salary and 
+                 (selfinc == 0 & selfemp == 0) &        # not paid hourly
+                 (paidhre == 0 | is.na(paidhre) )), na.rm = TRUE), 
+  
+               "(5) Hours Vary (among not paid hourly)" =
+                 sum(!!var1 * (empl == 1 &       #Hours vary if not paid hourly and 
+                 (selfinc == 0 & selfemp == 0) &        #hours vary
+                 (paidhre == 0 | is.na(paidhre) ) & hrsvary == 1), na.rm = TRUE),
+  
+               "(6) No wage (in (3) but not in (5))" = 
+                 sum(!!var1 * ( (empl == 1 & selfinc == 0 & selfemp == 0) & 
+                     (paidhre == 1 | hrsvary != 1 | is.na(hrsvary) ) & 
+                     (wage3==0 | is.na(wage3) ) ) , na.rm = TRUE), 
+               
+               "Population of Interest = (3) - (5) - (6)" = 
+                sum(!!var1 * (empl == 1 & (selfinc ==0 & selfemp == 0) & 
+                      ( (paidhre == 0 & hrsvary != 1) | paidhre ==1 )  & 
+                      wage3 != 0) , na.rm = TRUE)
+               )
 
-             "(4) Not Paid hourly (among salary)" = 
-               sum(final_weights * (empl == 1 &       # Not paid hourly if salary and 
-               (selfinc == 0 & selfemp == 0) &        # not paid hourly
-               (paidhre == 0 | is.na(paidhre) )), na.rm = TRUE), 
+  table_1 <- t(table_1)
+  table_1 <- format(table_1, big.mark = ",", digits = 0, scientific = FALSE)
+  return((table_1))
+}
 
-             "(5) Hours Vary (among not paid hourly)" =
-               sum(final_weights * (empl == 1 &       #Hours vary if not paid hourly and 
-               (selfinc == 0 & selfemp == 0) &        #hours vary
-               (paidhre == 0 | is.na(paidhre) ) & hrsvary == 1), na.rm = TRUE),
-
-             "(6) No wage (in (3) but not in (5))" = 
-               sum(final_weights * ( (empl == 1 & selfinc == 0 & selfemp == 0) & 
-                   (paidhre == 1 | hrsvary != 1 | is.na(hrsvary) ) & 
-                   (wage3==0 | is.na(wage3) ) ) , na.rm = TRUE), 
-             
-             "Population of Interest = (3) - (5) - (6)" = 
-              sum(final_weights * (empl == 1 & (selfinc ==0 & selfemp == 0) & 
-                    ( (paidhre == 0 & hrsvary != 1) | paidhre ==1 )  & 
-                    wage3 != 0) , na.rm = TRUE)
-             )
-
-table_1 <- t(table_1)
-colnames(table_1) <- "N"
-table_1 <- format(table_1, big.mark = ",", digits = 0, scientific = FALSE)
-
-
-table_1_uw  <- df  %>% 
-   summarise("(1) Total" =
-               sum(!is.na(final_weights), na.rm = TRUE), 
-             "(2) Employed" = 
-               sum( 1 * (empl == 1), na.rm = TRUE), 
-             "(3) Salary (among employed)" = 
-               sum( 1 * (empl == 1 &             #Salary worker if 
-               (selfinc == 0 & selfemp == 0))        #not self employed or     
-                , na.rm = TRUE),                     #self incorp.
-
-             "(4) Not Paid hourly (among salary)" = 
-               sum( 1 * (empl == 1 &              #Not paid hourly if salary and 
-               (selfinc == 0 & selfemp == 0) &        # not paid hourly
-               (paidhre == 0 | is.na(paidhre) )), na.rm = TRUE), 
-
-             "(5) Hours Vary (among not paid hourly)" =
-               sum( 1 * (empl == 1 &              #Hours vary if not paid hourly and 
-               (selfinc == 0 & selfemp == 0) &        #hours vary
-               (paidhre == 0 | is.na(paidhre) ) & hrsvary == 1), na.rm = TRUE),
-
-             "(6) No wage (in (3) but not in (5))" = 
-               sum( 1 * ( (empl == 1 & selfinc == 0 & selfemp == 0) & 
-                   (paidhre == 1 | hrsvary != 1 | is.na(hrsvary) ) & 
-                   (wage3==0 | is.na(wage3) ) ) , na.rm = TRUE), 
-             
-             "Population of Interest = (3) - (5) - (6)" = 
-              sum( 1 * (empl == 1 & (selfinc ==0 & selfemp == 0) & 
-                    ( (paidhre == 0 & hrsvary != 1) | paidhre ==1 )  & 
-                    wage3 != 0) , na.rm = TRUE)
-             )
-
-table_1_uw <- t(table_1_uw)
-colnames(table_1_uw) <- "N_unweighted"
-table_1_uw <- format(table_1_uw, big.mark = ",", digits = 0, scientific = FALSE)
-
-table_1 <- cbind(table_1, table_1_uw)
-
-
-
-
-
-
-new_total_n <- format(sum(df$final_weights[df$pop_of_int==1] * 
-                            (1 + workers.gr)^3, 
-                          na.rm = TRUE), big.mark=",")
-
-#Summary stats of wage
+# Table 2: DESCRIBE
+#Summary stats 
 sum.stas1 <- function(x, wt) {
    c( "mean" = weighted.mean(x,w = wt, na.rm = TRUE),
       "sd" = sqrt( wtd.var(x, weights = wt) ) , 
       "median" = wtd.quantile( x, weights = wt, prob = c(.5)) ,
-      wtd.quantile( x, weights = wt, prob = c(.1, .9) ) )
+                wtd.quantile( x, weights = wt, prob = c(.1, .9) ) )
 } 
-
-table_2 <- df %>% 
+f_table2 <- function() {
+  table_2 <- df %>% 
   filter(pop_of_int == 1 & !is.na(wage3)) %>% 
     with(sum.stas1(wage3, final_weights))
 
-table_2 <- cbind(table_2)
-colnames(table_2) <- "Wage"
+  table_2 <- cbind(table_2)
+  colnames(table_2) <- "Wage"
+  return(table_2)
+}
 
+# Table 3: DESCRIBE
+f_table3 <- function() {
+  table_3 <- df %>% 
+    filter(pop_of_int == 1 & !is.na(wage3)) %>% 
+      summarise("> $7.5" = weighted.mean(wage3<7.5,w = final_weights), 
+                "> $9" = weighted.mean(wage3<9,w = final_weights), 
+                "> $10.10" = weighted.mean(wage3<10.10,w = final_weights), 
+                "> $13" = weighted.mean(wage3<13,w = final_weights), 
+                "> $15" = weighted.mean(wage3<15,w = final_weights) 
+                )
+  
+  table_3 <- t(table_3)
+  colnames(table_3) <- "Perc"
+  return(table_3)
+}
 
-table_3 <- df %>% 
-  filter(pop_of_int == 1 & !is.na(wage3)) %>% 
-    summarise("> $7.5" = weighted.mean(wage3<7.5,w = final_weights), 
-              "> $9" = weighted.mean(wage3<9,w = final_weights), 
-              "> $10.10" = weighted.mean(wage3<10.10,w = final_weights), 
-              "> $13" = weighted.mean(wage3<13,w = final_weights), 
-              "> $15" = weighted.mean(wage3<15,w = final_weights) 
-              )
-
-table_3 <- t(table_3)
-colnames(table_3) <- "Perc"
-
-
-table_4 <- matrix(NA, 7, 2)
-colnames(table_4)  <- c("2013", "2016: status quo")
-rownames(table_4) <- c("Salary workers", 
-                       "Median wage", 
-                       "% < 7.5","% < 9", 
-                       "% < 10.10", "% < 13", 
-                       "% < 15" )
-
-table_4[1,1] <- table_1[7]
-table_4[1,2] <- new_total_n
-table_4[2,1] <- table_2[3]
-
-table_4[2,2] <- round( with(df[df$pop_of_int == 1 & !is.na(df$wages.final), ], 
-                            wtd.quantile( wages.final, weights = final_weights * 
-                            (1 + workers.gr)^3, prob = c(.5) ) ), digits = 2 )
-
-table_4[3:7,1]  <- round(as.matrix(table_3), digits = 2)
-
-aux.1 <- df %>% 
-  filter(pop_of_int == 1 & !is.na(wages.final)) %>% 
-    summarise("> $7.50" = weighted.mean(wages.final<7.5,
+# Table 4: DESCRIBE
+f_table4 <- function() {
+  table_4 <- matrix(NA, 7, 2)
+  colnames(table_4)  <- c("2013", "2016: status quo")
+  rownames(table_4) <- c("Salary workers", 
+                         "Median wage", 
+                         "% < 7.5","% < 9", 
+                         "% < 10.10", "% < 13", 
+                         "% < 15" )
+  
+  table_4[1,1] <- table_1[7,1]
+  table_4[1,2] <- format(sum(df$final_weights[df$pop_of_int==1] * 
+                              (1 + workers.gr)^3, 
+                            na.rm = TRUE), big.mark=",")
+  table_4[2,1] <- table_2[3]
+  
+  table_4[2,2] <- round( with(df[df$pop_of_int == 1 & !is.na(df$wages.final), ], 
+                              wtd.quantile( wages.final, weights = final_weights * 
+                              (1 + workers.gr)^3, prob = c(.5) ) ), digits = 2 )
+  
+  table_4[3:7,1]  <- round(as.matrix(table_3), digits = 2)
+  
+  aux.1 <- df %>% 
+    filter(pop_of_int == 1 & !is.na(wages.final)) %>% 
+      summarise("> $7.50" = weighted.mean(wages.final<7.5,
+                                          w = final_weights * (1 + workers.gr)^3), 
+                "> $9" = weighted.mean(wages.final<9,
+                                       w = final_weights * (1 + workers.gr)^3), 
+                "> $10.10" = weighted.mean(wages.final<10.10,
+                                           w = final_weights * (1 + workers.gr)^3), 
+                "> $13" = weighted.mean(wages.final<13,
                                         w = final_weights * (1 + workers.gr)^3), 
-              "> $9" = weighted.mean(wages.final<9,
-                                     w = final_weights * (1 + workers.gr)^3), 
-              "> $10.10" = weighted.mean(wages.final<10.10,
-                                         w = final_weights * (1 + workers.gr)^3), 
-              "> $13" = weighted.mean(wages.final<13,
-                                      w = final_weights * (1 + workers.gr)^3), 
-              "> $15" = weighted.mean(wages.final<15,
-                                      w = final_weights * (1 + workers.gr)^3) 
-              )
+                "> $15" = weighted.mean(wages.final<15,
+                                        w = final_weights * (1 + workers.gr)^3) 
+                )
+  
+  table_4[3:7,2] <- round( as.matrix(aux.1), digits = 2 )
+  return(table_4)
+}
 
-table_4[3:7,2] <- round( as.matrix(aux.1), digits = 2 )
 
-###Build first treemap
+  
+### Build first treemap
 #if (!(length(dev.list()) == 0)) { dev.off() }
 #x11()
-universe.1 <- df %>% 
-        mutate("teen" = ifelse(age<20, "teen", "adult"), 
-               "selfemp_inc" = 1 * (selfemp == 1 | selfinc == 1), 
-               "pop_of_int" = 1 * pop_of_int, 
-               "lfstat" = as.character(as_factor(lfstat)) ) %>%  
-        group_by(lfstat, selfemp_inc, teen, pop_of_int)  %>% 
-        summarise("total" = sum(final_weights, na.rm = TRUE))
+# NEED TO DESCRIBE
+data_for_treemap <- function() {
+  universe.1 <- df %>% 
+          mutate("teen" = ifelse(age<20, "teen", "adult"), 
+                 "selfemp_inc" = 1 * (selfemp == 1 | selfinc == 1), 
+                 "pop_of_int" = 1 * pop_of_int, 
+                 "lfstat" = as.character(as_factor(lfstat)) ) %>%  
+          group_by(lfstat, selfemp_inc, teen, pop_of_int)  %>% 
+          summarise("total" = sum(final_weights, na.rm = TRUE))
+  
+  universe.1$selfemp_inc[universe.1$lfstat!="Employed"] = NA 
+  universe.1[universe.1$lfstat!="Employed" | universe.1$selfemp_inc==1, c("teen", "pop_of_int")] = NA
+  universe.1$selfemp_inc[universe.1$selfemp_inc==0]  <- "salary"
+  universe.1$selfemp_inc[universe.1$selfemp_inc==1]  <- "self employed or self incorporated"
+  #universe.1$pop_of_int <- with(universe.1, ifelse(pop_of_int==1,"included", "excluded"))
+  return(universe.1)
+}
 
-universe.1$selfemp_inc[universe.1$lfstat!="Employed"] = NA 
-universe.1[universe.1$lfstat!="Employed" | universe.1$selfemp_inc==1, c("teen", "pop_of_int")] = NA
-universe.1$selfemp_inc[universe.1$selfemp_inc==0]  <- "salary"
-universe.1$selfemp_inc[universe.1$selfemp_inc==1]  <- "self employed or self incorporated"
-#universe.1$pop_of_int <- with(universe.1, ifelse(pop_of_int==1,"included", "excluded"))
-
-
-
+# NEED TO DESCRIBE
 treemap.1 <- function(){
   invisible(
   treemap(universe.1,
@@ -902,6 +877,13 @@ treemap.1 <- function(){
     title = "Figure 1: Distribution of population of working age in 2013"
   ))
 }
+
+table_1 <- cbind(f_table1(final_weights), 
+                 f_table1(!is.na(final_weights)))
+colnames(table_1) <- c("N", "Unweighted")
+table_2 <- f_table2()
+table_3 <- f_table3()
+table_4 <- f_table4()
 ```
 
 </div>
@@ -1031,6 +1013,7 @@ noi mat list table_1
 </div>
 
 ```{r print fig1, echo=FALSE} 
+universe.1 <- data_for_treemap()
 aux.1 <- treemap.1()
 ```
 
