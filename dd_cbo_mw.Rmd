@@ -1019,40 +1019,42 @@ aux.1 <- treemap.1()
 
 For the universe of interest (employed, salaried, with hourly wages or non varying hours N = `r temp.pop.of.interest` millions), we describe the distribution of hourly wages in 2013 and the forecast values for 2016. Figure 2.
 
-
 #### Statistics and code behind figure 2
 
 <a id="displayText" href="javascript:toggle(11);">`R`</a>  
 <div id="toggleText11" style="display: none">  
   
 ```{r Dist wage, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results="hide", error=FALSE, collapse=TRUE, fig.show='hold'}
-p <-    df  %>% 
-  filter(pop_of_int==1 & wage3<=200)  %>% 
-  select(wage3, wages.final, final_weights) %>%
-  melt(value.variables=c("wage3", "wages.final") , id="final_weights") %>% 
-  mutate("final_weights" = ifelse(variable=="wages.final", 
-                                  final_weights * (1 + workers.gr)^3, 
-                                  final_weights) ) %>% 
-  ggplot() + 
-    geom_density(aes(x = value, 
-                     fill=variable, 
-                     weight = final_weights, 
-                     alpha = 1/2, 
-                     colour=variable), bw=1, kernel = "gau") + 
-    geom_vline(xintercept = c(7.25, 10.10, 11.5), col="blue") +
-    coord_cartesian(xlim = c(0,20)) +   
-    guides(alpha = "none", colour="none") + 
-    scale_x_discrete(limits = c(0,7.5, 10.10, 11.5, 20)) +
-    labs(y = NULL, 
-         x = "Wage" , 
-         title = "Figure 2: Distribution of wages in 2013 and 2016(forecast)")+
-    theme(axis.ticks = element_blank(), axis.text.y = element_blank()) +
-    theme(legend.justification=c(0,1), 
-          legend.position=c(0,1), 
-          legend.background = element_rect(fill = "transparent", 
-                                           colour = "transparent") )+
-    scale_fill_discrete(name=NULL,
-                         labels=c("2013", "2016 (Forecast)"))
+two_dist <- function() {
+  df  %>% 
+    filter(pop_of_int==1 & wage3<=200)  %>% 
+    select(wage3, wages.final, final_weights) %>%
+    melt(value.variables=c("wage3", "wages.final") , id="final_weights") %>% 
+    mutate("final_weights" = ifelse(variable=="wages.final", 
+                                    final_weights * (1 + workers.gr)^3, 
+                                    final_weights) ) %>% 
+    ggplot() + 
+      geom_density(aes(x = value, 
+                       fill=variable, 
+                       weight = final_weights, 
+                       alpha = 1/2, 
+                       colour=variable), bw=1, kernel = "gau") + 
+      geom_vline(xintercept = c(7.25, 10.10, 11.5), col="blue") +
+      coord_cartesian(xlim = c(0,20)) +   
+      guides(alpha = "none", colour="none") + 
+      scale_x_discrete(limits = c(0,7.5, 10.10, 11.5, 20)) +
+      labs(y = NULL, 
+           x = "Wage" , 
+           title = "Figure 2: Distribution of wages in 2013 and 2016(forecast)")+
+      theme(axis.ticks = element_blank(), axis.text.y = element_blank()) +
+      theme(legend.justification=c(0,1), 
+            legend.position=c(0,1), 
+            legend.background = element_rect(fill = "transparent", 
+                                             colour = "transparent") )+
+      scale_fill_discrete(name=NULL,
+                           labels=c("2013", "2016 (Forecast)"))
+}
+p <- two_dist()
 ```
 
 </div> 
