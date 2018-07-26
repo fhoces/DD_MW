@@ -214,7 +214,7 @@ The weights used in our analysis will be `orgwgt/12`
 <a id="displayText" href="javascript:toggle(1);">`R`</a>  
 <div id="toggleText1" style="display: none">  
   
-```{r loading data R, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
+```{r loading cps data R, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
 call.cps.org.data <- function(){
   data_use <- "CPER_ORG"
   # Using CEPR ORG data 
@@ -456,9 +456,6 @@ dwld_and_write_d2 <- function() {
   return(read_csv(file = "rawdata/state_mw.csv"))
 }   
 
-# Get raw data on MW
-state_mw_raw <- dwld_and_write_d2()
-
 # Clean data
 clean_d2 <- function(df1 = state_mw_raw) {
   # Check if raw data is newer than clean data
@@ -501,9 +498,10 @@ clean_d2 <- function(df1 = state_mw_raw) {
   return(read_csv(file = "data/state_mw_clean.csv"))
 }
 
+# Get raw data on MW
+state_mw_raw <- dwld_and_write_d2()
 # Get clean data on MW
 state_min_w <- clean_d2()
-
 # Export MW data to Stata
 write.dta(state_min_w, "state_min_w.dta")
 ```
@@ -544,13 +542,9 @@ wage.gr.f <- function(SA.wage.gr = param.wage.gr) {
   ( ( gr.factor("wages per worker", 2014, 2016) )^(1/3) - 1 ) * SA.wage.gr
 }
 
-wage.gr <- wage.gr.f()
-
 workers.gr.f <- function(SA.worker.gr = param.worker.gr) {
   ( ( gr.factor("workers", 2014, 2016) )^(1/3) - 1 ) * SA.worker.gr
 }
-
-workers.gr <- workers.gr.f()  
 
 # SAME
 # Compute the gap between average wage growth and the growth of the lowest decile (assume by CBO)
@@ -558,8 +552,6 @@ half.gap.f <- function(SA.wage.gr = param.wage.gr,
                        SA.base.growth = param.base.growth) {
   wage.gr.f(SA.wage.gr) - SA.base.growth 
 }
-
-half.gap <- half.gap.f()
 
 # 10 wage growth bins starting from lowest assumed value to 2 times the gap computed above 
 wage.gr.bins.f <- function( SA.base.growth = param.base.growth,
@@ -569,7 +561,6 @@ wage.gr.bins.f <- function( SA.base.growth = param.base.growth,
   return(bins)
 }
 
-wage.gr.bins <- wage.gr.bins.f()
 # CAUTION: DO NOT apply 'ntile()' fn from dplry as is will split ties differently than 'cut()' and results will not
 # be comparable to STATA. 
 
@@ -577,34 +568,38 @@ wage.gr.bins <- wage.gr.bins.f()
 
 # Here we adjust min wages
 # SAME
-
 wages.final.cps.org.f <- function(df.temp = df, 
                                   wage.gr.bins.temp = wage.gr.bins,
                                   SA.states.raise = param.states.raise,
                                   SA.wages = param.wages) {
     # Compute deciles of wages
     aux.var  <- wtd.quantile(x = df.temp$wage3, 
-                             probs = 1:9/10,weights = df.temp$final_weights)
+                             probs = 1:9/10, weights = df.temp$final_weights)
+    # Get state min wages for 2016
+    st.minw.2016 <- state_min_w %>% 
+      select( c( "state_co", "y2016", "state") )%>% 
+      rename(state_la = state, state = state_co)
+    # prepare state key for merge
+    df.temp <- df.temp %>% 
+      mutate(state_la = as.character(as_factor(state)), 
+             state = as.numeric(state))  
+    # merge with state MW
+    df.temp <- left_join(df.temp, st.minw.2016, "state")
+    # Create categories of decile, apply wage growth, and increase is new wage is below 2016 state wage
     df.temp <- df.temp %>%
         mutate( "w3.deciles" = cut(wage3, c(0, aux.var, Inf), 
                                   right = TRUE, include.lowest = TRUE) ,  
                 "w3.adj1" =  wage3 * ( 1 + wage.gr.bins.temp[w3.deciles] )^3, 
-                "wages.final" = ifelse(w3.adj1> st.minw.2016[state,] * SA.states.raise,
+                "wages.final" = ifelse(w3.adj1> y2016 * SA.states.raise,
                                   w3.adj1,
-                                  st.minw.2016[state,] * SA.states.raise) * SA.wages  ) 
-
+                                  y2016 * SA.states.raise) * SA.wages  ) 
     return(df.temp)
-    }
+}
 
-#################
-st.minw.2016 <- state_min_w %>% select( c( "state_co", "y2016", "state") )%>% rename(state_la = state, state = state_co)
-
-df.temp1 <- df.temp %>% mutate(state_la = as.character(as_factor(state)), state = as.numeric(state))
-
-asd <- left_join(df.temp1,st.minw.2016, "state")
-table(asd$y2016, useNA = "always")
-#########
-
+wage.gr <- wage.gr.f()
+workers.gr <- workers.gr.f()  
+half.gap <- half.gap.f()
+wage.gr.bins <- wage.gr.bins.f()
 df <- wages.final.cps.org.f()
 
 ```  
@@ -654,6 +649,7 @@ replace w3_adj_min = minwage_2016 if w3_adj1 < minwage_2016
 # parragraph.  The temp prefix is used as the next code chunk computes all the relevant populations
 
 temp.working.age.pop <- round( sum(df$final_weights, na.rm = TRUE)/1e6, 1)
+
 temp.employed.pop <- round( sum( df$final_weights * 
                                    (df$lfstat == "Employed"), 
                                  na.rm = TRUE)/1e6, 1)
@@ -693,7 +689,7 @@ temp.pop.of.interest <- round(with(df, sum(final_weights *
                                            na.rm = TRUE))/1e6, 1)
 ```
 
-According to the CPS data the population of working age in 2013 was `r temp.working.age.pop` million*. Of those, `r temp.employed.pop` million were working, `r temp.unemployed.pop`, were unemployed and `r temp.nilf.pop` were not in the labor force (NILF). 
+According to the CPS data, the population of working age in 2013 was `r temp.working.age.pop` million*. Of those, `r temp.employed.pop` million were working, `r temp.unemployed.pop`, were unemployed and `r temp.nilf.pop` were not in the labor force (NILF). 
 
 Among those employed, `r temp.salary` million workers receive a salary (not self employed or self incorporated).  A small number of salary workers (`r temp.salary.g1` million) did not reported any wages and were excluded from the sample. Of the employed salary workers `r temp.nohour` million did not report an hourly wage and it was computed from their reported pay-period divided by the reported hours in such pay-period. However, `r temp.nohour.hours.vary` million workers from this group reported having varying hours. Their wages were not calculated and were also excluded from the sample.  As a result the final number of workers where a rise in the minimum wage can have a direct effect is `r temp.pop.of.interest` million (= `r temp.salary` - `r temp.salary.g1` -  `r temp.nohour.hours.vary`), this is our universe of interest. Figure 1 presents visual representation of all these populations. 
 
@@ -708,6 +704,7 @@ Define variable that tags population of interest
 
 ```{r desc stats2,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, error=FALSE, collapse=TRUE}
 # Tag population of interest 
+# DESCRIBE EACH CONDITION ##############################
 get.pop.int <- function(df.temp=df) {
   df.temp <- df.temp %>% mutate("pop_of_int" = (empl == 1 &
                (selfinc == 0 & selfemp == 0) & 
@@ -716,6 +713,7 @@ get.pop.int <- function(df.temp=df) {
                !(wage3 == 0 | is.na(wage3) ) ) )
   return(df.temp)
 }
+
 df <- get.pop.int()
 
 # Tables 1 - 4 where constructed to look at the data. Only table 4 is shown in the final output 
@@ -794,6 +792,11 @@ table_1_uw <- format(table_1_uw, big.mark = ",", digits = 0, scientific = FALSE)
 
 table_1 <- cbind(table_1, table_1_uw)
 
+
+
+
+
+
 new_total_n <- format(sum(df$final_weights[df$pop_of_int==1] * 
                             (1 + workers.gr)^3, 
                           na.rm = TRUE), big.mark=",")
@@ -867,8 +870,9 @@ table_4[3:7,2] <- round( as.matrix(aux.1), digits = 2 )
 universe.1 <- df %>% 
         mutate("teen" = ifelse(age<20, "teen", "adult"), 
                "selfemp_inc" = 1 * (selfemp == 1 | selfinc == 1), 
-               "pop_of_int" = 1 * pop_of_int) %>%  
-        group_by(lfstat,selfemp_inc, teen, pop_of_int)  %>% 
+               "pop_of_int" = 1 * pop_of_int, 
+               "lfstat" = as.character(as_factor(lfstat)) ) %>%  
+        group_by(lfstat, selfemp_inc, teen, pop_of_int)  %>% 
         summarise("total" = sum(final_weights, na.rm = TRUE))
 
 universe.1$selfemp_inc[universe.1$lfstat!="Employed"] = NA 
@@ -876,6 +880,8 @@ universe.1[universe.1$lfstat!="Employed" | universe.1$selfemp_inc==1, c("teen", 
 universe.1$selfemp_inc[universe.1$selfemp_inc==0]  <- "salary"
 universe.1$selfemp_inc[universe.1$selfemp_inc==1]  <- "self employed or self incorporated"
 #universe.1$pop_of_int <- with(universe.1, ifelse(pop_of_int==1,"included", "excluded"))
+
+
 
 treemap.1 <- function(){
   invisible(
