@@ -595,12 +595,15 @@ wages.final.cps.org.f <- function(df.temp = df,
 
     return(df.temp)
     }
+
+#################
 st.minw.2016 <- state_min_w %>% select( c( "state_co", "y2016", "state") )%>% rename(state_la = state, state = state_co)
 
 df.temp1 <- df.temp %>% mutate(state_la = as.character(as_factor(state)), state = as.numeric(state))
 
-left_join(df.temp1,st.minw.2016, "state") %>% select(contains("state")) %>% View()
-
+asd <- left_join(df.temp1,st.minw.2016, "state")
+table(asd$y2016, useNA = "always")
+#########
 
 df <- wages.final.cps.org.f()
 
