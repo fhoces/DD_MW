@@ -1507,14 +1507,13 @@ $$
 <div id="toggleText19" style="display: none">  
 
 ```{r employment effect, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE} 
+#DESCRIBE
 eta.lit.f <- function(SA.eta.lit = param.eta.lit) - 0.1 * SA.eta.lit 
 
-eta.lit <- eta.lit.f(SA.eta.lit = param.eta.lit)
-
+#DESCRIBE
 factor.extrap.f <- function(SA.factor.extrap = param.factor.extrap) 1/3 * SA.factor.extrap
 
-factor.extrap <- factor.extrap.f()
-
+#DESCRIBE
 final.other.comp <- function(df.temp = df) {
   stats3 <-  df.temp  %>% 
     filter(pop_of_int == 1) %>% 
@@ -1537,9 +1536,8 @@ final.other.comp <- function(df.temp = df) {
   return(stats3)
 }
 
-stats3 <- final.other.comp(df.temp = df)
-
 # As described in doc
+#DESCRIBE
 delta.e1.f <- function(SA.N = param.N, 
                        SA.fract.minwage = param.fract.minwage, 
                        SA.noncomp = param.noncomp, 
@@ -1558,8 +1556,6 @@ delta.e1.f <- function(SA.N = param.N,
        (stats3["$\\overline{\\%\\Delta w}$",1:2]/100) * SA.av.wage.var  
     ) + 0.05 * 0.9
 }
-
-delta.e1 <- delta.e1.f()
 
 # As it should have been computed according to doc
 delta.e2 <- sum( (1 + workers.gr)^3 * 
@@ -1608,7 +1604,10 @@ delta.e4 <- sum( (1 + workers.gr)^3 *
 # abline(v = c(-1.96, -1.6, 1.6, 1.96), col = "red")  
 
 #knitr::kable(stats3, caption="Components of Elasticities", digits = 2) 
-
+eta.lit <- eta.lit.f(SA.eta.lit = param.eta.lit)
+factor.extrap <- factor.extrap.f()
+stats3 <- final.other.comp(df.temp = df)
+delta.e1 <- delta.e1.f()
 ```    
 </div>
 
@@ -1617,10 +1616,7 @@ delta.e4 <- sum( (1 + workers.gr)^3 *
 knitr::kable(stats3, caption="Components of Elasticities", digits = 2) 
 ```    
 
-
 Using all the components described above we get $\widehat{ \Delta^{-} E } =$ `r round(delta.e1*1000)` thousand jobs. The report however computes $F^{g}_{adjs}$ in a different fashion and gets a value of 4.5 (when computing the values of $F^{g}_{adjs}$  from the table below - as oppose to using historical values - we get $\widehat{ \Delta^{-} E } =$ `r round(delta.e2*1000)` thousand jobs). 
-
-
 
 # Distributional effects   
 
@@ -1633,7 +1629,7 @@ As the unit of interest now is the family and detailed information on income is 
 
 ### Computing wages in CPS ASEC 2013  
 
-The hourly wage ($w$) was computed as the ratio of yearly earnings ($y$) and the product of usual number of hours worked in a week ($Hour.per.Week$) and the number of weeks worked in a year ($Weeks.per.Year$). The CPS ASEC data set contains three variables for yearly earnings: `incp_all` `incp_ern` `incp_wag` corresponding to all income, earnings and wages respectively. We choose `incp_wag`. 
+The hourly wage ($w$) was computed as the ratio of yearly earnings ($y$) and the product of usual number of hours worked in a week ($Hour.per.Week$) and the number of weeks worked in a year ($Weeks.per.Year$). The CPS ASEC data set contains three variables for yearly earnings: `incp_all, incp_ern`, `incp_wag` corresponding to all income, earnings, and wages respectively. We choose `incp_wag`. 
 
 For this data set, the weights used in our analysis will be `hhwgt`.  
 
@@ -1646,18 +1642,18 @@ $$
 
 #### Code to load the data  
 
-
 <a id="displayText" href="javascript:toggle(21);">`R`</a>  
 <div id="toggleText21" style="display: none">  
 
 ```{r loading data cps_asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
+# DESCRIBE
 call.cps.asec.data <-  function() {
   data_use <- "CPER_ASEC"
   
   # Using CEPR ORG data 
   if (data_use == "CPER_ASEC") {
   # Checking if working directory contains data, download if not. 
-    if ( !("cepr_march_2013.dta" %in% dir()) ) {
+    if ( !("cepr_march_2013.dta" %in% dir(path = "./rawdata/")) ) {
     	# create name of file to store data
     	tf <- "cepr_march_2013.zip"
     
@@ -1665,17 +1661,16 @@ call.cps.asec.data <-  function() {
     	download.file(url =  "http://ceprdata.org/wp-content/cps/data/cepr_march_2013.zip", tf , mode = "wb" )
     
     	# unzip the file's contents and store the file name within the temporary directory
-    	fn <- unzip( zipfile = tf ,"cepr_march_2013.dta",  overwrite = T )
+    	fn <- unzip(exdir = "./rawdata/", zipfile = tf ,"cepr_march_2013.dta",  overwrite = T )
     }
-    df <- haven::read_dta("cepr_march_2013.dta")
+    df <- haven::read_dta("./rawdata/cepr_march_2013.dta")
   }
   
   df <- tbl_df(df)
   return(df)
 }
 
-df <- call.cps.asec.data()
-
+# DESCRIBE
 add.base.vars <- function(SA.hours = param.hours, 
                           SA.weeks = param.weeks, 
                           SA.N = param.N) {
@@ -1684,21 +1679,13 @@ add.base.vars <- function(SA.hours = param.hours,
                 "hhwgt" = hhwgt * SA.N)
 }
 
+df <- call.cps.asec.data()
 df <- add.base.vars()
 ```  
 
 </div>
 
-<a id="displayText" href="javascript:toggle(22);">`Stata`</a>  
-<div id="toggleText22" style="display: none">  
-```{r  loading data cps_asec STATA, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
-*Not done yet  
-
-```
-
-</div>
-
-#### Code for computing wages and descriptive stats  
+#### Code for computing wages and descriptive statistics  
 
 <a id="displayText" href="javascript:toggle(23);">`R`</a>  
 <div id="toggleText23" style="display: none">  
@@ -1706,29 +1693,34 @@ df <- add.base.vars()
 ```{r Descript stats1 cps asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
 # Tag population of interest FH: (1) Need to deal with 598 NA's and (2) clarify that restrictions here are not 
 # exactly the same as CPS ORG.  
-pop_of_int <- with(df,
-                   (empl == 1 &
-                      (selfinc == 0 & selfemp == 0) & 
-                      !(incp_wag == 0 | is.na(incp_wag) ) )
-                    )
+f_pop_of_int <- function() { 
+  with(df,
+          (empl == 1 &
+          (selfinc == 0 & selfemp == 0) & 
+          !(incp_wag == 0 | is.na(incp_wag) ) )
+        )
+}
 
-#FH: Should I adjust any wage below the min to the min?
 
 # For CPS ASEC I am using the weights hhwgt
-table_5  <- df  %>% 
-   summarise("(1) Total" =
-               sum(hhwgt, na.rm = TRUE), 
-             "(2) Employed" = 
-               sum( hhwgt * (empl == 1), na.rm = TRUE), 
-             "(3) Salary (among employed)" = 
-               sum(hhwgt * (empl == 1 &             #Salary worker if 
-               (selfinc == 0 & selfemp == 0))       #not self employed or     
-                , na.rm = TRUE)                     #self incorp.
-            )
-
-table_5 <- t(table_5)
-colnames(table_5) <- "N"
-table_5 <- format(table_5, big.mark = ",", digits = 0, scientific = FALSE)
+# DESCRIBE
+f_table_5 <- function() {
+  table_5  <- df  %>% 
+     summarise("(1) Total" =
+                 sum(hhwgt, na.rm = TRUE), 
+               "(2) Employed" = 
+                 sum( hhwgt * (empl == 1), na.rm = TRUE), 
+               "(3) Salary (among employed)" = 
+                 sum(hhwgt * (empl == 1 &             #Salary worker if 
+                 (selfinc == 0 & selfemp == 0))       #not self employed or     
+                  , na.rm = TRUE)                     #self incorp.
+              )
+  
+  table_5 <- t(table_5)
+  colnames(table_5) <- "N"
+  table_5 <- format(table_5, big.mark = ",", digits = 0, scientific = FALSE)
+  return(table_5)
+}
 
 #Summary stats of wage
 sum.stas1 <- function(x, wt) {
@@ -1738,14 +1730,18 @@ sum.stas1 <- function(x, wt) {
                  wtd.quantile( x, weights = wt, prob = c(.1, .9) ) )
 } 
 
-table_6 <- df %>% 
-  filter(pop_of_int == 1 & !is.na(hhwgt)) %>%
-    select(incp_wag, hrslyr, wkslyr, hhwgt) 
-
-table_6 <- sapply(table_6[,c("incp_wag", "hrslyr", "wkslyr")],
-                  function(x) sum.stas1(x, table_6$hhwgt) )
-table_6 <- cbind(table_6)
-colnames(table_6) <- c("Earnings", "Hours", "weeks") 
+#DESCRIBE
+f_table_6 <- function() {
+  table_6 <- df %>% 
+    filter(pop_of_int == 1 & !is.na(hhwgt)) %>%
+      select(incp_wag, hrslyr, wkslyr, hhwgt) 
+  
+  table_6 <- sapply(table_6[,c("incp_wag", "hrslyr", "wkslyr")],
+                    function(x) sum.stas1(x, table_6$hhwgt) )
+  table_6 <- cbind(table_6)
+  colnames(table_6) <- c("Earnings", "Hours", "weeks") 
+  return(table_6)
+}
 
 # Compute hourly wages, replace negative vales withs 0's
 add.wage.var <- function(df) {
@@ -1758,31 +1754,31 @@ add.wage.var <- function(df) {
   return(df)
 }
 
+#DESCRIBE
 df <- add.wage.var(df)
-  
-table_7 <- df %>% 
-  filter(pop_of_int == 1 & !is.na(wage)) %>%
-    summarise("N" = sum(hhwgt.2013),
-              "> $7.5" = weighted.mean(wage.2013<7.5,w = hhwgt.2013), 
-              "> $9" = weighted.mean(wage.2013<9,w = hhwgt.2013), 
-              "> $10.10" = weighted.mean(wage.2013<10.10,w = hhwgt.2013), 
-              "> $13" = weighted.mean(wage.2013<13,w = hhwgt.2013), 
-              "> $15" = weighted.mean(wage.2013<15,w = hhwgt.2013) 
-              ) 
 
-table_7 <- t(table_7) 
-colnames(table_7) <- "Perc (2013)"  
+f_table_7 <- function() {  
+  table_7 <- df %>% 
+    filter(pop_of_int == 1 & !is.na(wage)) %>%
+      summarise("N" = sum(hhwgt.2013),
+                "> $7.5" = weighted.mean(wage.2013<7.5,w = hhwgt.2013), 
+                "> $9" = weighted.mean(wage.2013<9,w = hhwgt.2013), 
+                "> $10.10" = weighted.mean(wage.2013<10.10,w = hhwgt.2013), 
+                "> $13" = weighted.mean(wage.2013<13,w = hhwgt.2013), 
+                "> $15" = weighted.mean(wage.2013<15,w = hhwgt.2013) 
+                ) 
+  
+  table_7 <- t(table_7) 
+  colnames(table_7) <- "Perc (2013)"  
+  return(table_7)
+}
+pop_of_int <- f_pop_of_int()
+table_5 <- f_table_5()
+table_6 <- f_table_6()
+df <- add.wage.var(df)
+table_7 <- f_table_7()
 
 ``` 
-
-</div>
-
-<a id="displayText" href="javascript:toggle(24);">`Stata`</a>  
-<div id="toggleText24" style="display: none">  
-```{r Descript stats1 cps asec STATA, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
-*Not done yet  
-
-```
 
 </div>
 
