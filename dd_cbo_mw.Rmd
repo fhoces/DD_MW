@@ -54,7 +54,7 @@ The role of policy analysis is to connect research with policy. Because of heavy
 
 Here we attempt to contribute to the policy discussion of the minimum wage. The minimum wage is a contentious policy issue in the US. Increasing it has positive and negative effects that different policymakers value differently. We aim to add clarity on what those effects are, how much do we know about them, and how those effects vary when elements of the analysis change. We select the most up-to-date, non-partisan, policy analysis of the effects of raising the minimum wage, and build an open-source reproducible analysis on top of it.
 
-In 2014 the Congressional Budget Office published the report titled ["The Effects of a Minimum-Wage Increase on Employment and Family Income"](https://www.cbo.gov/publication/44995). The report receive wide attention from key stakeholders and has been used extensible as an input in the debate around the minimum wage[^3]. To this date we consider the CBO report to be the best non-partisan estimation of the effects of raising the minimum wage at the federal level. Although there was disagreement among experts around some technical issues, this disagreement has been mainly circumscribed around one of the many inputs used in the analysis, and we can fit the opposing positions in to our framework.
+In 2014 the Congressional Budget Office published the report titled ["The Effects of a Minimum-Wage Increase on Employment and Family Income"](https://www.cbo.gov/publication/44995). The report receive wide attention from key stakeholders and has been used extensible as an input in the debate around the minimum wage. To this date we consider the CBO report to be the best non-partisan estimation of the effects of raising the minimum wage at the federal level. Although there was disagreement among experts around some technical issues, this disagreement has been mainly circumscribed around one of the many inputs used in the analysis, and we can fit the opposing positions in to our framework.
 
 Our purposes are twofold: First, promote the technical discussion around a recurrent policy issue (minimum wage) by making explicit and visible all the components and key assumptions of its most up-to-date official policy analysis. Second, demonstrate how new scientific practices of transparency and reproducibility (T & R) can be applied to policy analysis. We encourage the reader to collaborate in this document and help develop an ever-improving version of the important policy estimates[^3] (re)produced here.
 
@@ -250,6 +250,7 @@ call.cps.org.data <- function(){
   # There are 1293 cases with missin values for the weigths. I delete them from the data. 
   df <- df %>% filter(!is.na(orgwgt))
   df$final_weights <- df$orgwgt/12
+  df$lfstat <- as.character(as_factor(df$lfstat)) 
   return(df)
 }
 
@@ -577,16 +578,16 @@ wages.final.cps.org.f <- function(df.temp = df,
     # Compute deciles of wages
     aux.var  <- wtd.quantile(x = df.temp$wage3, 
                              probs = 1:9/10, weights = df.temp$final_weights)
-    # Get state min wages for 2016
-    st.minw.2016 <- state_min_w %>% 
-      select( c( "state_co", "y2016", "state") )%>% 
+    # Get state min wages for 2016 and 2013
+    st.minws <- state_min_w %>% 
+      select( c( "state_co","y2013" ,"y2016", "state") )%>% 
       rename(state_la = state, state = state_co)
     # prepare state key for merge
     df.temp <- df.temp %>% 
       mutate(state_la = as.character(as_factor(state)), 
              state = as.numeric(state))  
     # merge with state MW
-    df.temp <- left_join(df.temp, st.minw.2016, "state")
+    df.temp <- left_join(df.temp, st.minws, "state")
     # Create categories of decile, apply wage growth, and increase is new wage is below 2016 state wage
     df.temp <- df.temp %>%
         mutate( "w3.deciles" = cut(wage3, c(0, aux.var, Inf), 
@@ -840,12 +841,11 @@ f_table4 <- function() {
 #if (!(length(dev.list()) == 0)) { dev.off() }
 #x11()
 # NEED TO DESCRIBE
-data_for_treemap <- function() {
+data_for_treemap1 <- function() {
   universe.1 <- df %>% 
           mutate("teen" = ifelse(age<20, "teen", "adult"), 
                  "selfemp_inc" = 1 * (selfemp == 1 | selfinc == 1), 
-                 "pop_of_int" = 1 * pop_of_int, 
-                 "lfstat" = as.character(as_factor(lfstat)) ) %>%  
+                 "pop_of_int" = 1 * pop_of_int ) %>%  
           group_by(lfstat, selfemp_inc, teen, pop_of_int)  %>% 
           summarise("total" = sum(final_weights, na.rm = TRUE))
   
@@ -1013,7 +1013,7 @@ noi mat list table_1
 </div>
 
 ```{r print fig1, echo=FALSE} 
-universe.1 <- data_for_treemap()
+universe.1 <- data_for_treemap1()
 aux.1 <- treemap.1()
 ```
 
@@ -1106,25 +1106,28 @@ Among the population of interest, the employment effects of the minimum wage wil
 ```{r Fig 3, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results="hide", error=FALSE, collapse=TRUE, fig.show='hold'}
 #####################
 #if (!(length(dev.list()) == 0)) { dev.off() }
-#x11()
-universe.1 <- df %>% 
-        mutate("teen" = ifelse(age<20, "teen", "adult"), 
-               "wage_c" = ifelse(wage3<10.10 & !is.na(wage3), "w < 10.10", "w >= 10.10"), 
-               "selfemp_inc" = 1 * (selfemp == 1 | selfinc == 1) ) %>% 
-          group_by(lfstat,selfemp, selfemp_inc, teen, wage_c)  %>% 
-            summarise("total" = sum(final_weights, na.rm = TRUE)) 
-
-universe.1$selfemp_inc[universe.1$lfstat!="Employed"] = NA
-universe.1$teen[universe.1$lfstat!="Employed"] = NA
-universe.1$wage_c[universe.1$selfemp_inc==1 | universe.1$lfstat!="Employed"] = NA
-
-universe.1$wage_n <- as.numeric(as.factor(universe.1$wage_c))
-
-universe.1$selfemp_inc[universe.1$selfemp_inc==0]  <- "salary"
-universe.1$selfemp_inc[universe.1$selfemp_inc==1]  <- "self employed or self incorporated"
-
-universe.1$color <-c("#d95f0e", "#fff7bc")[as.factor(universe.1$wage_c)] 
-universe.1$color[is.na(universe.1$color)] <- "#D3D3D3" 
+#x11
+data_for_treemap2 <- function() {
+  universe.1 <- df %>% 
+          mutate("teen" = ifelse(age<20, "teen", "adult"), 
+                 "wage_c" = ifelse(wage3<10.10 & !is.na(wage3), "w < 10.10", "w >= 10.10"), 
+                 "selfemp_inc" = 1 * (selfemp == 1 | selfinc == 1) ) %>% 
+            group_by(lfstat, selfemp, selfemp_inc, teen, wage_c)  %>% 
+              summarise("total" = sum(final_weights, na.rm = TRUE)) 
+  
+  universe.1$selfemp_inc[universe.1$lfstat!="Employed"] = NA
+  universe.1$teen[universe.1$lfstat!="Employed"] = NA
+  universe.1$wage_c[universe.1$selfemp_inc==1 | universe.1$lfstat!="Employed"] = NA
+  
+  universe.1$wage_n <- as.numeric(as.factor(universe.1$wage_c))
+  
+  universe.1$selfemp_inc[universe.1$selfemp_inc==0]  <- "salary"
+  universe.1$selfemp_inc[universe.1$selfemp_inc==1]  <- "self employed or self incorporated"
+  
+  universe.1$color <-c("#d95f0e", "#fff7bc")[as.factor(universe.1$wage_c)] 
+  universe.1$color[is.na(universe.1$color)] <- "#D3D3D3"
+  return(universe.1)
+}
 
 treemap.2 <- function() {  
   invisible(
@@ -1159,25 +1162,14 @@ treemap.2 <- function() {
 
 </div>
 
-<a id="displayText" href="javascript:toggle(14);">`Stata`</a>  
-<div id="toggleText14" style="display: none">  
-
-```{r fig3 STATA, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
-*Note: Stata cannot produce treemaps/mosaic plots, but numbers in table 1
-*should be identical.  
-
-```
-
-</div>
-
-
 ```{r print fig3, echo=FALSE, warning=FALSE, message=FALSE} 
+universe.1 <- data_for_treemap2()
 aux.2 <- treemap.2()   
 ```  
 
 ### Identify relevant population  
 
-Given our universe, the next step is to identify the population that would be actually affected if a raise in the minimum wage takes place.  The two relevant populations to define now are the number of low wage workers ($\widehat{ N_{lowwage} }$) and the number of workers that would earn less than the new minimum wage ($\widehat{ N_{w\leq MW^{1}} }$). CBO defines a low wage as one below \$11.5 dollars per hour in 2016, and the proposed value used for the minimum wage is \$10.10 dollars per hour. From now on we separate each of this group among adults and teenagers following CBO's convention. 
+Given our universe, the next step is to identify the population that would be actually affected if a raise in the minimum wage takes place.  The two relevant populations to define now are the number of low wage workers ($\widehat{ N_{lowwage} }$) and the number of workers that would earn less than the new minimum wage ($\widehat{ N_{w\leq MW^{1}} }$). CBO defines a low wage as one below \$11.5 dollars per hour in 2016, and the proposed value used for the minimum wage is \$10.10 dollars per hour. From now on we separate each of these groups among adults and teenagers following CBO's convention. 
 
 Three adjustments are applied to the population of workers with wages below the new minimum wage:    
   1 - Workers whose earnings are mainly from tips are tagged and a different minimum wage is apply to them (\$2.13).  
@@ -1197,9 +1189,9 @@ Tipped workers with wages below 7.25 are 1% of the total tipped workers. Non-tip
 
 #### Non compliance    
 
-We estimate the *proportion of low wage workers (wage less then 11.50) that earn less than the their state's minimum wage in 2013* as a proxy for non compliers under the new minimum wage in 2016. The original reports mention that it comes up to 12% of the low wage population. 
+We estimate the *proportion of low wage workers (wage less then 11.50) that earn less than the their state's minimum wage in 2013* as a proxy for non compliers under the new minimum wage in 2016. The original report mentions that it comes up to 12% of the low wage population. 
 
-Following the original report (footnote 25) we will consider salary workers as non compliers only if their wage is strictly less than 25 cents for non-tipped workers or 13 cents for tipped workers. 
+Following the original report (footnote 25) we will consider salary workers as non compliers only if their wage is lower than the minimum wage, by less than 25 cents for non-tipped workers or 13 cents for tipped workers. 
 
 ##### Code to compute percentage of non compliers 
 
@@ -1211,32 +1203,27 @@ Following the original report (footnote 25) we will consider salary workers as n
 
 # variable peernuot seems to be the most appropiate variable to indicate wether or nor receives tips
 # 1=YES; 2=NO
-non.comp.stats <- df %>%
-  select(wage3, state, final_weights, peernuot, pop_of_int)  %>%
+# DESCRIBE
+f_non_comp_stats <- function(){
+  df %>%
+  select(wage3, state, final_weights, peernuot, pop_of_int, y2013, y2016)  %>%
     filter(pop_of_int == 1 & wage3<=11.5)  %>%
       summarise(
         "% of non compliers w/o adj" = 
-          wtd.mean(wage3 < state.minw("2013")[state, ], 
+          wtd.mean(wage3 < y2013, 
                           weights = final_weights), 
         "% of non compliers with adj" = 
           wtd.mean(wage3 + 0.25 * (peernuot == 2) + 
-                          0.13 * (peernuot == 1)  < state.minw("2013")[state, ], 
+                          0.13 * (peernuot == 1)  < y2013, 
                           weights = final_weights) 
         )
+}
 
+non.comp.stats <- f_non_comp_stats()
 ```  
 
 </div>
 
-<a id="displayText" href="javascript:toggle(16);">`Stata`</a>  
-<div id="toggleText16" style="display: none">  
-
-```{r Estimating non compliance STATA, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
-*Not done yet  
-
-```
-
-</div>
 
 #### Not covered that might benefit   
 
@@ -1326,7 +1313,7 @@ $$
 
 The table below presents the estimate from 2013 for all each component.
 
-<a id="displayText" href="javascript:toggle(17);">`R`</a>  
+<a id="displayText" href="javascript:toggle(16);">`R`</a>  
 <div id="toggleText17" style="display: none">  
 
 ```{r compute Ns, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}
@@ -1387,23 +1374,10 @@ stats2 <- N.final.f()
 
 </div>
 
-<a id="displayText" href="javascript:toggle(18);">`Stata`</a>  
-<div id="toggleText18" style="display: none">  
-
-```{r compute Ns STATA, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
-*Not done yet  
-
-```
-
-</div>
-
 ```{r table summary ,echo=FALSE, warning=FALSE, message=FALSE}
 # (stats2[4,3]) - sum( (stats2[4, 1:2])*(stats2[2, 1:2]/sum(stats2[2, 1:2]))  )
 knitr::kable(stats2, caption="Characteristics of target population", digits = 2)
 ```  
-
-
-
 
 
 ## Get the $\eta \times \Delta w$  
@@ -1485,7 +1459,8 @@ CBO reasons that a rise in the minimum wage would have effects in aggregate cons
 
 The effects on consumption are separated into direct and indirect. 
 
-### Direct effects on consumption  
+### Direct effects on consumption 
+
  - Job loses $\Rightarrow$ reduction in consumption.  
  - Increase wages $\Rightarrow$ increase consumption.  
  - Less profits for business owners and shareholders  $\Rightarrow$ reduction in consumption.  
@@ -1494,6 +1469,7 @@ The effects on consumption are separated into direct and indirect.
 Overall the direct effect on consumption is estimated[?] to be positive due to a higher marginal propensity to consume of the low wage individuals relative to high income ones.   
 
 ### Indirect effects on consumption  
+
  - Increase in consumption $\Rightarrow$ Increase investment in the future  $\Rightarrow$ Increase consumption in the future.  
  - Increase prices of low-wage-intensive items $\Rightarrow$ increase demand in other items  $\Rightarrow$ Bottleneck in other items until firms adjust. 
  
@@ -1525,7 +1501,7 @@ $$
 <a id="displayText" href="javascript:toggle(19);">`R`</a>  
 <div id="toggleText19" style="display: none">  
 
-```{r employment effect, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}
+```{r employment effect, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE} 
 eta.lit.f <- function(SA.eta.lit = param.eta.lit) - 0.1 * SA.eta.lit 
 eta.lit <- eta.lit.f(SA.eta.lit = param.eta.lit)
 factor.extrap.f <- function(SA.factor.extrap = param.factor.extrap) 1/3 * SA.factor.extrap
@@ -1623,16 +1599,6 @@ delta.e4 <- sum( (1 + workers.gr)^3 *
 #knitr::kable(stats3, caption="Components of Elasticities", digits = 2) 
 
 ```    
-</div>
-
-
-<a id="displayText" href="javascript:toggle(20);">`Stata`</a>  
-<div id="toggleText20" style="display: none">  
-```{r employment effect STATA, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
-*Not done yet  
-
-```
-
 </div>
 
 
@@ -3279,4 +3245,3 @@ dev.off()
 
 [^2]: CBO calculated the fraction of teenagers with earnings below the minimum wage from 1979 to 2009 and the result came to about a third. Then they look at the average change in earnings for teenagers subject to the minimum wage over the same period, and compared that to the nominal change in each variation of the minimum wage. This ratio came to be about 1.5. With this the final estimates for the elasticity for teenagers came to be 4.5 ($1.5/(1/3)$) times higher than what is estimated in the literature.   
 
-[^3]: Cited so far by: 
