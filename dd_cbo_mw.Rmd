@@ -1231,7 +1231,7 @@ Additional information needed from CBO: how they identified non-FLSA eligibility
 
  - Include not covered by FLSA but expected to be affected: employees of small firms, occupations generally exempt from FLSA, and teenagers in first 90 days of employment.  
 
-```{r Target population fig MAYBE DELETE, eval=FALSE,echo=FALSE, warning=FALSE, message=FALSE,  error=FALSE, collapse=TRUE, fig.show='hold'}
+```{r Target population fig MAYBE DELETE, eval=FALSE,echo=FALSE, warning=FALSE, message=FALSE,  error=FALSE, collapse=TRUE, fig.show='hold'} 
 library(treemap)
 
 if (!(length(dev.list()) == 0)) { dev.off() }
@@ -1339,22 +1339,22 @@ N.final.f <- function(df.temp = df, workers.gr.temp = workers.gr){
   #Non compliance (starting from a different denominator: 'pop_of_int == 1 & wage3 < 11.5')
   aux.2 <- bind_rows(
     df.temp %>%
-    select(wage3, age, state, final_weights, peernuot, pop_of_int)  %>%
+    select(wage3, age, state, final_weights, peernuot, pop_of_int, y2013)  %>%
     filter(pop_of_int == 1 & wage3 <= 11.5) %>% 
     mutate("adult" = ifelse(age>=20, "Adult", "Teen") )  %>% 
     group_by(adult)  %>% 
         summarise(
             "% of non compliers ($\\alpha_{1}$)" = 
             wtd.mean(1 * (wage3 + 0.25 * (peernuot == 2) + 
-                            0.13 * (peernuot == 1)  < state.minw("2013")[state, ] ), 
+                            0.13 * (peernuot == 1)  < y2013 ), 
                             weights = final_weights)*100 ),  
     df.temp %>%
-    select(wage3, age, state, final_weights, peernuot, pop_of_int)  %>%
+    select(wage3, age, state, final_weights, peernuot, pop_of_int, y2013)  %>%
     filter(pop_of_int == 1 & wage3 <= 11.5) %>% 
         summarise(
             "% of non compliers ($\\alpha_{1}$)" = 
             wtd.mean(1 * (wage3 + 0.25 * (peernuot == 2) + 
-                            0.13 * (peernuot == 1)  < state.minw("2013")[state, ] ), 
+                            0.13 * (peernuot == 1)  < y2013 ), 
                             weights = final_weights)*100 ) %>% 
             mutate("adult" = "Total")
   )
@@ -1369,15 +1369,16 @@ stats2 <- N.final.f()
 
 # FH: There a small difference in the overall total and the sum of Teens and Adults:
 # stats2[6,3] - sum( (stats2[6, 1:2])  )
-# I have pinned down the source of the problem to differences in the way % is calculated (for groups relative to the total):
+# I have pinned down the source of the problem to differences in the way % is calculated (for groups relative to the total)
 ``` 
 
 </div>
 
-```{r table summary ,echo=FALSE, warning=FALSE, message=FALSE}
+```{r table summary ,echo=FALSE, warning=FALSE, message=FALSE} 
 # (stats2[4,3]) - sum( (stats2[4, 1:2])*(stats2[2, 1:2]/sum(stats2[2, 1:2]))  )
 knitr::kable(stats2, caption="Characteristics of target population", digits = 2)
 ```  
+
 
 
 ## Get the $\eta \times \Delta w$  
@@ -1386,9 +1387,13 @@ In order to get the elasticity of labor demand that best fits the context analys
 
 ### Getting the best estimates from the literature  
 
-It is unclear the precise mechanism used by CBO to choose the estimates for the labor demand elasticity. Later I will assume that it came from a meta-analysis and calibrate the weights of some of the meta-analysis cited in the report to reflect that choice.  
+It is unclear the precise mechanism used by CBO to choose the estimates for the labor demand elasticity. 
 
-For now we take their estimate as given: -0.1 for the teenager population, with a "likely range" a range from 0 to -0.2 ("likely range" is used throughout the report to estimate the expert judgment that the elasticity will be in that range 2/3 of the time)[^1]. The reasons provided in the report for choosing this figure can be summarize by the following three points:  
+<!--
+Later I will assume that it came from a meta-analysis and calibrate the weights of some of the meta-analysis cited in the report to reflect that choice.  
+-->
+
+We take their estimate as given: -0.1 for the teenager population, with a "likely range" a range from 0 to -0.2 ("likely range" is used throughout the report to estimate the expert judgment that the elasticity will be in that range 2/3 of the time)[^1]. The reasons provided in the report for choosing this figure can be summarize by the following three points:  
   - More weight was given to studies that exploit across state variation (as opposed to over time country level variation).    
   - The final estimate takes in to account publication bias towards highly negative estimates.  
   - The magnitude of the increase (%39) and the fact that would be indexed to inflation going forward, makes it an unusually large increase in the minimum wage.    
@@ -1473,7 +1478,7 @@ Overall the direct effect on consumption is estimated[?] to be positive due to a
  - Increase in consumption $\Rightarrow$ Increase investment in the future  $\Rightarrow$ Increase consumption in the future.  
  - Increase prices of low-wage-intensive items $\Rightarrow$ increase demand in other items  $\Rightarrow$ Bottleneck in other items until firms adjust. 
  
-Overall the indirect effect on consumption is estimated[?] to be negative. 
+Overall the indirect effect on consumption is estimated to be negative. 
 
 ### Overall effect on consumption and its effect on employment  
 CBO estimates [?] that the net effect on consumption would be positive and that its effect on employment would be between 30,000 and 50,000 additional jobs for 2016. This effects are estimated for the short run only. The methodology is mention to be similar to the one used to asses the American Recovery and Reinvestment Act ([found here]())
@@ -1489,7 +1494,7 @@ $$
 
 ## Computing effects on employment  
 
-Putting all elements together we get: 
+Putting all these elements together we get: 
 $$
 \begin{aligned}
  \widehat{ \Delta E } &= \sum_{g\in\{A,T\}} \left( \widehat{ N^{final}_{g} } \times \widetilde{ \eta^{g}_{w\leq MW} }\times \overline{\%\Delta w^{g}}  \right) - \widehat{OF}
@@ -1503,9 +1508,13 @@ $$
 
 ```{r employment effect, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE} 
 eta.lit.f <- function(SA.eta.lit = param.eta.lit) - 0.1 * SA.eta.lit 
+
 eta.lit <- eta.lit.f(SA.eta.lit = param.eta.lit)
+
 factor.extrap.f <- function(SA.factor.extrap = param.factor.extrap) 1/3 * SA.factor.extrap
+
 factor.extrap <- factor.extrap.f()
+
 final.other.comp <- function(df.temp = df) {
   stats3 <-  df.temp  %>% 
     filter(pop_of_int == 1) %>% 
@@ -1527,6 +1536,7 @@ final.other.comp <- function(df.temp = df) {
   colnames(stats3) <- c("Adult", "Teen")  
   return(stats3)
 }
+
 stats3 <- final.other.comp(df.temp = df)
 
 # As described in doc
@@ -1548,6 +1558,7 @@ delta.e1.f <- function(SA.N = param.N,
        (stats3["$\\overline{\\%\\Delta w}$",1:2]/100) * SA.av.wage.var  
     ) + 0.05 * 0.9
 }
+
 delta.e1 <- delta.e1.f()
 
 # As it should have been computed according to doc
