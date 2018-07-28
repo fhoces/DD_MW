@@ -321,7 +321,7 @@ The adjustment over number of workers was made through the weight variable `fina
 <a id="displayText" href="javascript:toggle(3);">`R`</a>  
 <div id="toggleText3" style="display: none">      
 
-```{r Getting forecast data, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results = "hide"}
+```{r Getting forecast data, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results = "hide"} 
 
 dwld_and_write_d1 <- function()  {
     # Check if csv file is in local machine. Download if not.
@@ -394,10 +394,13 @@ gr.factor <- function(var1, init.year, last.year) {
 # For example growth factor between years 1,2 and 3 will be:
 # (1+growth_rate_yr1) * (1+growth_rate_yr2) * (1+growth_rate_yr3)
     if (init.year == 2012) {init.year <- 2013}
-    rates <- apply( growth.df[as.character(init.year:last.year),] + 1, 2, prod )
+    if (is.null(dim( growth.df[as.character(init.year:last.year),] ) )) { 
+      rates <- growth.df[as.character(init.year:last.year),] + 1
+    } else {
+      rates <- apply( growth.df[as.character(init.year:last.year),] + 1, 2, prod )
+    }
     return(rates[var1])
 }             
-    
 trends.df <- dwld_and_write_d1()    
 clean.df <- select_vals(trends.df)
 growth.df <- compute_rates(clean.df)
@@ -1501,12 +1504,12 @@ $$
 \end{aligned}
 $$  
 
-### Code to compute each component
+### Code to compute each component 
 
 <a id="displayText" href="javascript:toggle(19);">`R`</a>  
 <div id="toggleText19" style="display: none">  
 
-```{r employment effect, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE} 
+```{r employment effect, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}  
 #DESCRIBE
 eta.lit.f <- function(SA.eta.lit = param.eta.lit) - 0.1 * SA.eta.lit 
 
@@ -1556,6 +1559,10 @@ delta.e1.f <- function(SA.N = param.N,
        (stats3["$\\overline{\\%\\Delta w}$",1:2]/100) * SA.av.wage.var  
     ) + 0.05 * 0.9
 }
+
+eta.lit <- eta.lit.f(SA.eta.lit = param.eta.lit)
+factor.extrap <- factor.extrap.f()
+stats3 <- final.other.comp(df.temp = df)
 
 # As it should have been computed according to doc
 delta.e2 <- sum( (1 + workers.gr)^3 * 
@@ -1643,9 +1650,9 @@ $$
 #### Code to load the data  
 
 <a id="displayText" href="javascript:toggle(21);">`R`</a>  
-<div id="toggleText21" style="display: none">  
+<div id="toggleText21" style="display: none">   
 
-```{r loading data cps_asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
+```{r loading data cps_asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE} 
 # DESCRIBE
 call.cps.asec.data <-  function() {
   data_use <- "CPER_ASEC"
@@ -1681,7 +1688,19 @@ add.base.vars <- function(SA.hours = param.hours,
 
 df <- call.cps.asec.data()
 df <- add.base.vars()
-```  
+
+# DESCRIBE (MAYBE WRAP IN FUNCTION)
+# Get state min wages for 2016 and 2013
+st.minws <- state_min_w %>% 
+  select( c( "state_co","y2013" ,"y2016", "state") )%>% 
+  rename(state_la = state, state = state_co)
+# prepare state key for merge
+df <- df %>% 
+  mutate(state_la = as.character(as_factor(state)), 
+         state = as.numeric(state))  
+# merge with state MW
+df <- left_join(df, st.minws, "state")
+```   
 
 </div>
 
@@ -1690,7 +1709,7 @@ df <- add.base.vars()
 <a id="displayText" href="javascript:toggle(23);">`R`</a>  
 <div id="toggleText23" style="display: none">  
 
-```{r Descript stats1 cps asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
+```{r Descript stats1 cps asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE} 
 # Tag population of interest FH: (1) Need to deal with 598 NA's and (2) clarify that restrictions here are not 
 # exactly the same as CPS ORG.  
 f_pop_of_int <- function() { 
@@ -1755,8 +1774,6 @@ add.wage.var <- function(df) {
 }
 
 #DESCRIBE
-df <- add.wage.var(df)
-
 f_table_7 <- function() {  
   table_7 <- df %>% 
     filter(pop_of_int == 1 & !is.na(wage)) %>%
@@ -1772,6 +1789,7 @@ f_table_7 <- function() {
   colnames(table_7) <- "Perc (2013)"  
   return(table_7)
 }
+
 pop_of_int <- f_pop_of_int()
 table_5 <- f_table_5()
 table_6 <- f_table_6()
@@ -1782,9 +1800,8 @@ table_7 <- f_table_7()
 
 </div>
 
-
 #### Adjusting wages 1 
-As with the CPS ORG, an adjustment for wages is applied. Unlike the previous modification, where the adjustments was over a fraction of the population (those who did not report an hourly wage), our understanding is that CBO adjust the wages of all the population in this case.   
+As with the CPS ORG, an adjustment for wages is applied. Unlike the previous modification, where the adjustments were over a fraction of the population (those who did not report an hourly wage), our understanding is that CBO adjust the wages of all the population in this case.   
 
 The adjustments follows the following formula: 
 $$
@@ -1808,11 +1825,10 @@ $$
 \end{aligned}
 $$ 
 
-Additional information needed from CBO: about this adjustment.  
+Additional information needed from CBO: parameters for this adjustment.  
 
 #### Forecasting wage
-The wage forecast is the same methodology as in section 2.  This methodology is applied to a different data set (CPS ASEC) and for one additional year (forecasting from 2012 to 2016) than with the CPS ORG data
-
+The wage forecast is the same methodology as in section 2.  This methodology is applied to a different data set (CPS ASEC) and for one additional year (forecasting from 2012 to 2016) than with the CPS ORG data.
 
 ##### Code to forecast wages, workers
 
@@ -1828,26 +1844,31 @@ The wage forecast is the same methodology as in section 2.  This methodology is 
 wage.gr.asec.f <- function(SA.wage.gr = param.wage.gr) {
   ( ( gr.factor("wages per worker", 2013, 2016) )^(1/4) - 1 ) * SA.wage.gr
 }
-wage.gr <- wage.gr.asec.f()
 
 workers.gr.asec.f <- function(SA.worker.gr = param.worker.gr) {
   ( ( gr.factor("workers", 2013, 2016) )^(1/4) - 1 ) * SA.worker.gr
 }
-workers.gr <- workers.gr.asec.f()  
 
 #SAME
 half.gap.asec.f <- function(SA.wage.gr = param.wage.gr, 
                      SA.base.growth = param.base.growth) {
   wage.gr.asec.f(SA.wage.gr) - SA.base.growth 
 }
-half.gap <- half.gap.asec.f()
 
 wage.gr.bins.asec.f <- function(SA.base.growth = param.base.growth,
                          SA.wage.gr = param.wage.gr) {
   seq(SA.base.growth, wage.gr.asec.f(SA.wage.gr) + 
         half.gap.asec.f(SA.wage.gr,SA.base.growth), length.out = 10)
 }
+
+
+wage.gr <- wage.gr.asec.f()
+workers.gr <- workers.gr.asec.f()  
+half.gap <- half.gap.asec.f()
 wage.gr.bins <- wage.gr.bins.asec.f()
+
+
+#WRAP IN FUNCTION AND DESCRIBE
 # CAUTION: DO NOT apply 'ntile()' fn from dplry as is will split ties differently than 'cut()' and results will not
 # be comparable to STATA. 
 #NOT THE SAME (power of 3 intead of 4)
@@ -1863,6 +1884,7 @@ add.wages.1 <- function(df.temp = df, aux.var.temp = aux.var) {
                                 right = TRUE, include.lowest = TRUE) ,  
                 wage.adj1 =  wage * ( 1 + wage.gr.bins[wage.deciles] )^4) 
 }
+
 df <- add.wages.1()
 
 # To compute the new total of workers we multiply the original weigths by the growth rate. 
@@ -1874,23 +1896,15 @@ new_total_n <- format(sum(df$hhwgt[pop_of_int==1] *
 
 wages.final.asec.org.f <- function(SA.states.raise = param.states.raise,
                                 SA.wages = param.wages) {
-  with( df, ifelse(wage.adj1> st.minw.2016[state,] * SA.states.raise,
+  with( df, ifelse(wage.adj1> y2016 * SA.states.raise,
                    wage.adj1,
-                   st.minw.2016[state,] * SA.states.raise) ) * SA.wages
+                   y2016 * SA.states.raise) ) * SA.wages
 }
+
 df$wages.final <- wages.final.asec.org.f()
-```  
+```   
 </div>
 
-
-<a id="displayText" href="javascript:toggle(26);">`Stata`</a>  
-<div id="toggleText26" style="display: none">  
-```{r  forecasting cps asec wage cps_asec STATA, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
-*Not done yet  
-
-```
-
-</div>
 
 ##### Statistics and code behind figure 4  
 
@@ -1898,6 +1912,12 @@ df$wages.final <- wages.final.asec.org.f()
 <div id="toggleText27" style="display: none">  
 
 ```{r desc stats2 in forcast asec wage,  eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}
+
+#add pop_of_int as a var to df
+df$wage <- as.numeric(df$wage)
+df$wages.final <- as.numeric(df$wage)
+
+df <- df %>% filter(!is.na(hhwgt))
 # WHY TABLE 4?
 table_8 <- matrix(NA, 7, 2)
 colnames(table_8)  <- c("2013", "2016: status quo")
@@ -1912,9 +1932,9 @@ table_8[1,1] <- table_5[3]
 table_8[1,2] <- new_total_n
 
 # Median wage before projections
-table_8[2,1] <- round( with(df[pop_of_int == 1 & !is.na(df$wage), ], 
-                            wtd.quantile( wage, weights = hhwgt
-                                          , prob = c(.5) ) ), digits = 2 )
+table_8[2,1] <- round( with(df[(1*pop_of_int == 1) & !is.na(df$wage), ], 
+                            wtd.quantile( wage, weights = hhwgt, 
+                                          prob = c(.5) ) ), digits = 2 )
 # Median wage after projections
 table_8[2,2] <- round( with(df[pop_of_int == 1 & !is.na(df$wages.final), ], 
                             wtd.quantile( wages.final, weights = hhwgt * 
