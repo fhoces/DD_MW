@@ -705,10 +705,10 @@ Define variable that tags population of interest
 
 #### Statistics and code behind figure 1
 
-<a id="displayText" href="javascript:toggle(9);">`R`</a>  
-<div id="toggleText9" style="display: none">  
+<a id="displayText" href="javascript:toggle(9);">`R`</a>   
+<div id="toggleText9" style="display: none">   
 
-```{r desc stats2,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, error=FALSE, collapse=TRUE}
+```{r desc stats2,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, error=FALSE, collapse=TRUE}  
 # Tag population of interest 
 # DESCRIBE EACH CONDITION ##############################
 get.pop.int <- function(df.temp=df) {
@@ -1106,7 +1106,7 @@ Among the population of interest, the employment effects of the minimum wage wil
 <a id="displayText" href="javascript:toggle(13);">`R`</a>  
 <div id="toggleText13" style="display: none">  
 
-```{r Fig 3, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results="hide", error=FALSE, collapse=TRUE, fig.show='hold'}
+```{r Fig 3, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results="hide", error=FALSE, collapse=TRUE, fig.show='hold'} 
 #####################
 #if (!(length(dev.list()) == 0)) { dev.off() }
 #x11
@@ -1633,26 +1633,12 @@ In the first step towards obtaining the policy estimates presented in the [intro
 
 As the unit of interest now is the family and detailed information on income is needed, CBO performs the distributional analysis using a different data set from the Current Population Survey. Instead of the ORG, the following analysis uses the CPS Annual Social and Economic Supplement (ASEC) of March 2013. This data contains income information for the year 2012.  
 
-
-### Computing wages in CPS ASEC 2013  
-
-The hourly wage ($w$) was computed as the ratio of yearly earnings ($y$) and the product of usual number of hours worked in a week ($Hour.per.Week$) and the number of weeks worked in a year ($Weeks.per.Year$). The CPS ASEC data set contains three variables for yearly earnings: `incp_all, incp_ern`, `incp_wag` corresponding to all income, earnings, and wages respectively. We choose `incp_wag`. 
-
-For this data set, the weights used in our analysis will be `hhwgt`.  
-
-$$
-\begin{aligned}
-\hat{w} = \frac{\hat{y}}{\hat{Hours \, per \, Week} \times \hat{Weeks\,per\,Year}}
-\end{aligned}
-$$
-
-
 #### Code to load the data  
 
 <a id="displayText" href="javascript:toggle(21);">`R`</a>  
 <div id="toggleText21" style="display: none">   
 
-```{r loading data cps_asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE} 
+```{r loading data cps_asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}  
 # DESCRIBE
 call.cps.asec.data <-  function() {
   data_use <- "CPER_ASEC"
@@ -1704,6 +1690,18 @@ df <- left_join(df, st.minws, "state")
 
 </div>
 
+### Computing wages in CPS ASEC 2013  
+
+The hourly wage ($w$) was computed as the ratio of yearly earnings ($y$) and the product of usual number of hours worked in a week ($Hour.per.Week$) and the number of weeks worked in a year ($Weeks.per.Year$). The CPS ASEC data set contains three variables for yearly earnings: `incp_all, incp_ern`, `incp_wag` corresponding to all income, earnings, and wages respectively. We choose `incp_wag`. 
+
+For this data set, the weights used in our analysis will be `hhwgt`.  
+
+$$
+\begin{aligned}
+\hat{w} = \frac{\hat{y}}{\hat{Hours \, per \, Week} \times \hat{Weeks\,per\,Year}}
+\end{aligned}
+$$
+
 #### Code for computing wages and descriptive statistics  
 
 <a id="displayText" href="javascript:toggle(23);">`R`</a>  
@@ -1713,13 +1711,12 @@ df <- left_join(df, st.minws, "state")
 # Tag population of interest FH: (1) Need to deal with 598 NA's and (2) clarify that restrictions here are not 
 # exactly the same as CPS ORG.  
 f_pop_of_int <- function() { 
-  with(df,
-          (empl == 1 &
-          (selfinc == 0 & selfemp == 0) & 
-          !(incp_wag == 0 | is.na(incp_wag) ) )
-        )
+  df <- df %>% mutate("pop_of_int" =  1 * (empl == 1 &
+                (selfinc == 0 & selfemp == 0) & 
+                !(incp_wag == 0 | is.na(incp_wag) ) )
+  )
+  return(df)
 }
-
 
 # For CPS ASEC I am using the weights hhwgt
 # DESCRIBE
@@ -1790,12 +1787,11 @@ f_table_7 <- function() {
   return(table_7)
 }
 
-pop_of_int <- f_pop_of_int()
+df <- f_pop_of_int()
 table_5 <- f_table_5()
 table_6 <- f_table_6()
 df <- add.wage.var(df)
 table_7 <- f_table_7()
-
 ``` 
 
 </div>
@@ -1818,14 +1814,13 @@ Additional information needed from CBO: $\alpha$ and $G$ in this case.
 CBO mentions that the "it found far fewer workers who would be directly affected by the change in the minimum wage than it had in its analysis of employment", using the CPS ASEC we get `r paste(round(table_7[ "> $10.10",]*100, 1), "%", sep="")` workers below the 10.10 threshold, while using the CPS ORG we `r paste(round(table_3[ "> $10.10",]*100, 1), "%", sep="")`. 
 
 We assume that this second adjustment are a linear transformation ("mostly by adjusting some workers’ wages up to the minimum wage projected to apply to them in 2016 under current law"):
-$$
+$$ 
 \begin{aligned}
 \widetilde{w_{ig}} &= (1  + I(U \geq 0) \times F_{1}) w_{ig}I(g \in G_{1}) + \\
 &\quad w_{ig}( 1- I(g \in G_{1}))  \quad \text{with:  } U\sim Uniform(a,b) 
 \end{aligned}
-$$ 
+$$  
 
-Additional information needed from CBO: parameters for this adjustment.  
 
 #### Forecasting wage
 The wage forecast is the same methodology as in section 2.  This methodology is applied to a different data set (CPS ASEC) and for one additional year (forecasting from 2012 to 2016) than with the CPS ORG data.
@@ -1834,7 +1829,7 @@ The wage forecast is the same methodology as in section 2.  This methodology is 
 
 <a id="displayText" href="javascript:toggle(25);">`R`</a>  
 <div id="toggleText25" style="display: none"> 
-```{r forecasting cps asec wage, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results = "hide"}
+```{r forecasting cps asec wage, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results = "hide"} 
 #Wage adjutsment
 #CBO mentions that the lowest 10th percent gets a 2.9% growth in anual wage
 #I compute the anualized growth rate of wages and creat 10 bins of wage growth
@@ -1861,7 +1856,6 @@ wage.gr.bins.asec.f <- function(SA.base.growth = param.base.growth,
         half.gap.asec.f(SA.wage.gr,SA.base.growth), length.out = 10)
 }
 
-
 wage.gr <- wage.gr.asec.f()
 workers.gr <- workers.gr.asec.f()  
 half.gap <- half.gap.asec.f()
@@ -1873,10 +1867,6 @@ wage.gr.bins <- wage.gr.bins.asec.f()
 # be comparable to STATA. 
 #NOT THE SAME (power of 3 intead of 4)
 aux.var  <- wtd.quantile(x = df$wage, probs = 1:9/10,weights = df$hhwgt)
-df <- df %>%
-        mutate( wage.deciles = cut(wage, c(0, aux.var, Inf) , 
-                                right = TRUE, include.lowest = TRUE) ,  
-                wage.adj1 =  wage * ( 1 + wage.gr.bins[wage.deciles] )^4) 
 
 add.wages.1 <- function(df.temp = df, aux.var.temp = aux.var) {
   df.temp %>%
@@ -1888,7 +1878,7 @@ add.wages.1 <- function(df.temp = df, aux.var.temp = aux.var) {
 df <- add.wages.1()
 
 # To compute the new total of workers we multiply the original weigths by the growth rate. 
-new_total_n <- format(sum(df$hhwgt[pop_of_int==1] * 
+new_total_n <- format(sum(df$hhwgt[df$pop_of_int==1] * 
                             (1 + workers.gr)^4, 
                           na.rm = TRUE), big.mark=",")
 # Here we adjust min wages
@@ -1902,7 +1892,7 @@ wages.final.asec.org.f <- function(SA.states.raise = param.states.raise,
 }
 
 df$wages.final <- wages.final.asec.org.f()
-```   
+```    
 </div>
 
 
@@ -1912,11 +1902,6 @@ df$wages.final <- wages.final.asec.org.f()
 <div id="toggleText27" style="display: none">  
 
 ```{r desc stats2 in forcast asec wage,  eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}
-
-#add pop_of_int as a var to df
-df$wage <- as.numeric(df$wage)
-df$wages.final <- as.numeric(df$wage)
-
 df <- df %>% filter(!is.na(hhwgt))
 # WHY TABLE 4?
 table_8 <- matrix(NA, 7, 2)
@@ -1932,13 +1917,18 @@ table_8[1,1] <- table_5[3]
 table_8[1,2] <- new_total_n
 
 # Median wage before projections
-table_8[2,1] <- round( with(df[(1*pop_of_int == 1) & !is.na(df$wage), ], 
-                            wtd.quantile( wage, weights = hhwgt, 
-                                          prob = c(.5) ) ), digits = 2 )
+table_8[2,1] <- df %>% 
+  filter( (pop_of_int == 1) & !is.na(wage) ) %>% 
+  with(wtd.quantile( wage, weights = hhwgt, prob = c(.5) ) ) %>% 
+  round(digits = 2)
+
 # Median wage after projections
-table_8[2,2] <- round( with(df[pop_of_int == 1 & !is.na(df$wages.final), ], 
-                            wtd.quantile( wages.final, weights = hhwgt * 
-                            (1 + workers.gr)^4, prob = c(.5) ) ), digits = 2 )
+table_8[2,1] <- df %>% 
+  filter( (pop_of_int == 1) & !is.na(wage) ) %>% 
+  with(wtd.quantile( wages.final, weights =  hhwgt * 
+                       (1 + workers.gr)^4, prob = c(.5) ) ) %>% 
+  round(digits = 2)
+ 
 # Wage distribution in 2013
 table_8[3:7,1]  <- round(as.matrix(table_7[-1]), digits = 2)
 
@@ -1988,15 +1978,6 @@ p2 <-    df  %>%
 </div>
 
 
-<a id="displayText" href="javascript:toggle(28);">`Stata`</a>  
-<div id="toggleText28" style="display: none">  
-```{r   desc stats2 in forcast asec wage STATA, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
-*Not done yet  
-
-```
-
-</div>
-
 ```{r plot and table for dist asec, echo=FALSE, warning=FALSE, message=FALSE}
 print(p2) 
 knitr::kable(table_8, caption="Comparison of 2013 and 2016 under the status quo", digits = 1)
@@ -2025,11 +2006,10 @@ $$
 <div id="toggleText29" style="display: none">  
 
 ```{r positive effects,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
-#Increase population size (apply workers growth rate to all pop)
+# Increase population size (apply workers growth rate to all pop)
 
 # Create new wage (after inc in min wage)
 # Apply ripple effects
-
 wage.ripple.f <- function(SA.ripple = param.ripple) {
   df %>% 
   mutate( "hhwgt.2016" = hhwgt * (1 + workers.gr)^4 , 
@@ -2059,29 +2039,21 @@ wage.ripple.f <- function(SA.ripple = param.ripple) {
 
 df <- wage.ripple.f()
 
-# Get the number of workers whos wage would bebow 10.10 in the status quo (in millions)
-N_benes <- sum(df$hhwgt.2016[df$wages.final <= 10.10 & pop_of_int==1], na.rm = TRUE)/1e6
+# Get the number of workers whose wage would bebow 10.10 in the status quo (in millions)
+N_benes <- sum(df$hhwgt.2016[df$wages.final <= 10.10 & df$pop_of_int==1], na.rm = TRUE)/1e6
 
 # Compute total wage increase (yearly, in billions) -without ripple effects and before destroying jobs-
-wage.inc <- with(df[df$below_min == 1 & pop_of_int==1, ], 
+wage.inc <- with(df[df$below_min == 1 & df$pop_of_int==1, ], 
       sum((10.10 - wages.final) * hhwgt.2016 * hrslyr * wkslyr , na.rm = TRUE) ) / 1e9 
-
 
 # Total gain with ripple effects but without destroying any jobs  
 wage.inc.with.ripple <- df %>% 
-      with( sum((new.wage - wages.final) *  hhwgt.2016 * hrslyr * wkslyr , na.rm = TRUE) ) / 1e9 
+      with( sum((new.wage - wages.final) *  
+                  hhwgt.2016 * hrslyr * 
+                  wkslyr , na.rm = TRUE) ) / 1e9 
 ```  
 </div>
 
-
-<a id="displayText" href="javascript:toggle(30);">`Stata`</a>  
-<div id="toggleText30" style="display: none">  
-```{r  positive effects STATA, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
-*Not done yet  
-
-```
-
-</div>
 
 #### Substracting non compliers  
 In section 2.2 we estimate that `r paste(round(stats2["% of non compliers ($\\alpha_{1}$)", "Total"], 1),"%", sep="")` of workers eligible for a rise would not receive such benefit. To account for this fraction of non compliers replace the same fraction of new wages with what would have receive under the status quo.  
@@ -2095,23 +2067,22 @@ In section 2.2 we estimate that `r paste(round(stats2["% of non compliers ($\\al
 ```{r non compliesrs in asec,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
 # Apply ripple effects
 alpha.1 <- stats2["% of non compliers ($\\alpha_{1}$)", "Total"] * param.noncomp /100
-# df$new.wage[df$below_min==1 & pop_of_int==1] <- with(df[df$below_min==1 & pop_of_int==1,], 
-#                                                      ifelse(runif( length(new.wage) )< alpha.1, 
-#                                                             wages.final, 
-#                                                             new.wage) )
 
+#Assign old wages to a % of the population (non-compliers)
 set.seed(123)
-
 add.nocomp <- function(df.temp=df, alpha.1.temp = alpha.1) {
+  #randomly assign no compliance to alpha.1.temp% of the population
   df.temp %>% mutate("no.comply" = ifelse(pop_of_int==1 & wages.final<11.5,   
                                     ifelse(runif( length(new.wage) )< alpha.1.temp, 
                                            "Not comply", "comply"),
                                     NA), 
+  #Assing old wages for all the non-compliers
                 "new.wage.nocomp" = ifelse(no.comply %in% "Not comply" , 
                                     wages.final, 
                                     new.wage) 
                                     ) 
 }
+
 df <- add.nocomp()
 
 # Total gain with ripple effects but without destroying any jobs and accounting for non-compliance
@@ -2123,6 +2094,7 @@ wage.inc.with.ripple.non.comp <- df %>%
 N_benes_compliance_below_min <-  sum(df$hhwgt.2016[(df$wages.final != 
                                                       df$new.wage.nocomp) & df$below_min==1], 
                                      na.rm = TRUE)/1e6
+#
 N_benes_compliance_above_min <-  sum(df$hhwgt.2016[(df$wages.final != 
                                                       df$new.wage.nocomp) & df$below_min==0], 
                                      na.rm = TRUE)/1e6
@@ -2136,17 +2108,6 @@ pt <- function(x) round(x, 1)
 
 </div>
 
-
-<a id="displayText" href="javascript:toggle(32);">`Stata`</a>  
-<div id="toggleText32" style="display: none">  
-```{r  non compliesrs in asec STATA, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
-*Not done yet  
-
-```
-
-</div>
-
-
 After accounting for non compliance, the total number of workers that are potentially eligible for a raise is `r pt(N_benes_compliance)` million. Of that number `r pt(N_benes_compliance_below_min)` would have had a wage below the new minimum and `r pt(N_benes_compliance_above_min)` would have had a wage above 10.10, but receives a wage increase through ripple effects. We now impute job losses in order to obtain the final number of workers who benefit and lost from a raise in the minimum wage. 
 
 
@@ -2159,13 +2120,44 @@ Replace $\tilde{w} = \tilde{w}/2$ if :
   - $\frac{exp(m(x))}{1 + exp(m(x))} > Uniform[\theta]$  with $m(x) = \beta_{1} TEEN - \beta_{2} ADULT\times w$ and $\beta_{1}, \beta_2 >0$  
   - Choose $\theta$ to destroy $2\widehat{\Delta E}$ jobs.   
   
-**Information needed from CBO**. So far I am destroying jobs uniformly across workers earning less than 10.10  
+**Information needed from CBO**. So far we are destroying jobs uniformly across workers earning less than 10.10  
 
 #### Code to impute job loses
 
 <a id="displayText" href="javascript:toggle(33);">`R`</a>  
 <div id="toggleText33" style="display: none">  
 ```{r job destruction,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}  
+
+#Assign half of old wages to a % of the population (non-compliers)
+set.seed(123)
+frac_to_destroy <- df %>% 
+  filter(pop_of_int == 1 & wages.final <10.10) %>% 
+  summarise(2 * delta.e1 * 1e6 / sum(hhwgt.2016))
+
+
+add.nocomp <- function(df.temp=df, alpha.1.temp = frac_to_destroy) {
+  #randomly assign no compliance to alpha.1.temp% of the population
+  df.temp %>% mutate("wage_cut" = ifelse(pop_of_int==1 & wages.final<10.10,   
+                                    ifelse(runif( length(new.wage) )< alpha.1.temp, 
+                                           "half wage", "same wage"),
+                                    NA), 
+  #Assing old wages for all the non-compliers
+                "new.wage.nocomp.halfwage" = ifelse(wage_cut %in% "half wage" , 
+                                    wages.final/2, 
+                                    new.wage.nocomp) 
+                                    ) 
+}
+
+
+frac_to_destroy <- df %>% 
+  filter(pop_of_int == 1 & wages.final <10.10) %>% 
+  summarise(2 * delta.e1 * 1e6 / sum(hhwgt.2016))
+
+
+df %>% filter(pop_of_int == 1 & wages.final <10.10) %>% summarise(0.03*sum(!is.na(hhwgt.2016))) 
+
+
+
 #NOT USING THIS FOR NOW
 # m_x <- function(beta1 , beta2) with(df, 
 #                                     beta1 * ( age <= 19 ) - beta2 * ( age >= 20 ) * 
@@ -2180,7 +2172,7 @@ job.killer <- function(SA.jobcut = param.jobcut) {
   cut.job <- 0
   while ( abs(sum(cut.job * df$hhwgt.2016 , na.rm = TRUE) - num.to.del) >= 1e5)  { 
     set.seed(123)
-    cut.job <- 1* ( df$wages.final<=10.10 & pop_of_int==1 & df$no.comply=="comply" &
+    cut.job <- 1* ( df$wages.final<=10.10 & df$pop_of_int==1 & df$no.comply=="comply" &
                       (theta*runif(dim(df)[1], min = 0, max = 1) < 0.5) )
     # sum(cut.job * df$hhwgt.2016 , na.rm = TRUE)/1e6
     if (sum(cut.job * df$hhwgt.2016 , na.rm = TRUE) - num.to.del >= 10000) {
@@ -2195,7 +2187,7 @@ job.killer <- function(SA.jobcut = param.jobcut) {
   rm(cut.job)
   
   #df$teen <- df$age<20
-  #prop.table(with(df[pop_of_int == 1, ], table(cut.job,teen)), 2)
+  #prop.table(with(df[df$pop_of_int == 1, ], table(cut.job,teen)), 2)
   
   # Compute variables for each scenario
   # cut jobs, no wage raise
@@ -2231,15 +2223,6 @@ wage.gain.total <-  df %>%
 ```  
 </div>
 
-<a id="displayText" href="javascript:toggle(34);">`Stata`</a>  
-<div id="toggleText34" style="display: none">  
-```{r job destruction STATA, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
-*Not done yet  
-
-```
-
-</div>
-
 So far we get a total wage gain (accounting for job losses) of `r pt(wage.gain.total["Total wage gain"])`
 billion dollars (in 2016) and a total wage loss of `r pt(wage.gain.total["Total wage loss"])` billions due to workers loosing their jobs. The funds that cover the wage gains have to come from either less profits for business or higher prices for consumers. In the next section we review the distribution of wage gains, wage losses and balance losses across the income distribution. 
 
@@ -2259,11 +2242,8 @@ Additional information needed from CBO: how do they decompose the income.
 ### Growth of non working population  
 Forecasts of population growth were the same for working population. For non working population, the growth rate was matched to CBO forecasts for that group. 
 
-
 ### Other income losses.   
 Income losses from a reduction in profits ($\Delta^{-}\pi$) and an increase in aggregate prices ($\Delta^{+}P$) is estimated[?] to be distributed as following: 1% of the losses for those below the poverty line (PL), 29% for those between 1 and 6 PL, and 70% for those above 6PL. 
-
-
 
 ## Other considerations  
 
@@ -2285,7 +2265,6 @@ No interactions with other programs is assumed (SNAP or EITC).
 
 ### What is in the 2/3  
   - CBO acknowledges uncertainty in the estimates of elasticity due to possible technological changes in the future.  
-
 # Results 
 
 
@@ -2341,7 +2320,6 @@ df <- all.income.f()
 # Per capita agregate income has slightly less gains, probably due to hhld with winners and losers. 
 # wage.gain.total["Total wage gain"]
 
-  
 losses <- with(df, sum(winners * hhwgt.2016) - param.factor.1 * sum(losers * hhwgt.2016) )  - param.net.benef
 pop.dist <- wtd.table( with(df, findInterval(x = sq.inc.pc, 
                                              vec = c(-Inf,11740, 6*11740, Inf)) ) , weights = df$hhwgt.2016 )$sum.of.weights
@@ -2555,17 +2533,6 @@ table_9[ "aggr effect", ] <- t(as.data.frame(aux.1[,2]) )
 
 </div>
 
-
-
-<a id="displayText" href="javascript:toggle(36);">`Stata`</a>  
-<div id="toggleText36" style="display: none">  
-
-```{r income STATA, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
-*
-
-```
-
-</div>
 
 
 
@@ -2899,7 +2866,7 @@ SA.part2 <- function(
   rm(cut.job)
   
   #df$teen <- df$age<20
-  #prop.table(with(df[pop_of_int == 1, ], table(cut.job,teen)), 2)
+  #prop.table(with(df[df$pop_of_int == 1, ], table(cut.job,teen)), 2)
   
   # Compute variables for each scenario
   # cut jobs, no wage raise
