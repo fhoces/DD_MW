@@ -373,14 +373,15 @@ compute_rates <- function(var.df) {
   #Labeling and formating
   colnames(var.df) <- 2012:(2012+7)
   var.df <- apply(var.df, 2, as.numeric)
-  row.names(var.df) <- c( "wages(total)", "workers", "Price Index, Personal Consumption")
+  row.names(var.df) <- c( "wages(total)", "workers",  "Personal CPI")
   
   #Generate wage and non-wage income per worker
   var.df <- rbind( var.df ,  
                       (var.df["wages(total)", ] * 1e9 ) / ( var.df["workers", ] * 1e6) )
   
-  row.names(var.df) <- c("wages(total)", "workers", "Price Index, 
-                          Personal Consumption", "wages per worker")
+  # "Price Index, Personal Consumption" = "Personal CPI"
+  row.names(var.df) <- c("wages(total)", "workers",  "Personal CPI",
+                         "wages per worker")
   # Transpose the data
   var.df <- t(var.df)
   
@@ -2128,83 +2129,36 @@ Replace $\tilde{w} = \tilde{w}/2$ if :
 <div id="toggleText33" style="display: none">  
 ```{r job destruction,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}  
 
-#Assign half of old wages to a % of the population (non-compliers)
-set.seed(123)
-frac_to_destroy <- df %>% 
-  filter(pop_of_int == 1 & wages.final <10.10) %>% 
-  summarise(2 * delta.e1 * 1e6 / sum(hhwgt.2016))
-
-
-add.nocomp <- function(df.temp=df, alpha.1.temp = frac_to_destroy) {
+job.killer <- function(df.temp=df) {
+  #Assign half of old wages to a % of the population (non-compliers)
+  set.seed(123)
+  job.cut.factor <- 2
+  frac_to_destroy <- df %>% 
+    filter(pop_of_int == 1 & wages.final <10.10) %>% 
+    summarise(job.cut.factor * (- delta.e1) * 1e6 / sum(hhwgt.2016))
+    
   #randomly assign no compliance to alpha.1.temp% of the population
   df.temp %>% mutate("wage_cut" = ifelse(pop_of_int==1 & wages.final<10.10,   
-                                    ifelse(runif( length(new.wage) )< alpha.1.temp, 
+                                    ifelse(runif(length(new.wage) )< as.numeric(frac_to_destroy), 
                                            "half wage", "same wage"),
                                     NA), 
-  #Assing old wages for all the non-compliers
-                "new.wage.nocomp.halfwage" = ifelse(wage_cut %in% "half wage" , 
-                                    wages.final/2, 
-                                    new.wage.nocomp) 
-                                    ) 
-}
-
-
-frac_to_destroy <- df %>% 
-  filter(pop_of_int == 1 & wages.final <10.10) %>% 
-  summarise(2 * delta.e1 * 1e6 / sum(hhwgt.2016))
-
-
-df %>% filter(pop_of_int == 1 & wages.final <10.10) %>% summarise(0.03*sum(!is.na(hhwgt.2016))) 
-
-
-
-#NOT USING THIS FOR NOW
-# m_x <- function(beta1 , beta2) with(df, 
-#                                     beta1 * ( age <= 19 ) - beta2 * ( age >= 20 ) * 
-#                                       wages.final - 1000 * 
-#                                       (wages.final> 10.10 | pop_of_int == 0) )
-job.killer <- function(SA.jobcut = param.jobcut) {
-  set.seed(123)
-  job.cut.factor <- 2 * SA.jobcut
-  num.to.del <- - delta.e1*1e6*job.cut.factor
-  #WOULD LIKE TO MAKE THE NEXT OPTIMIZATION MORE EFFICIENT
-  theta <- 3
-  cut.job <- 0
-  while ( abs(sum(cut.job * df$hhwgt.2016 , na.rm = TRUE) - num.to.del) >= 1e5)  { 
-    set.seed(123)
-    cut.job <- 1* ( df$wages.final<=10.10 & df$pop_of_int==1 & df$no.comply=="comply" &
-                      (theta*runif(dim(df)[1], min = 0, max = 1) < 0.5) )
-    # sum(cut.job * df$hhwgt.2016 , na.rm = TRUE)/1e6
-    if (sum(cut.job * df$hhwgt.2016 , na.rm = TRUE) - num.to.del >= 10000) {
-      theta <- theta * 1.001 
-    } else {
-      theta <- theta * 0.999
-    }
-     #print(theta)
-  } 
-  df$cut.job <- cut.job
-  df$cut.job[is.na(df$cut.job)] <- 0
-  rm(cut.job)
-  
-  #df$teen <- df$age<20
-  #prop.table(with(df[df$pop_of_int == 1, ], table(cut.job,teen)), 2)
-  
   # Compute variables for each scenario
   # cut jobs, no wage raise
-  df$cut.wage <- with(df, ifelse(cut.job %in% 1, 
+                "cut.wage" = ifelse(wage_cut %in% "half wage",
                                  wages.final/job.cut.factor, 
-                                 wages.final) )
+                                 wages.final) ,
   # cut jobs relative to sq, wage raise
-  df$new.wage.final <- with(df, ifelse(cut.job %in% 1, 
+                "new.wage.final" = ifelse(wage_cut %in% "half wage",
                                        wages.final/job.cut.factor, 
-                                       new.wage.nocomp) )
+                                       new.wage.nocomp),  
   # cut jobs relative to raise, wage raise
-  df$new.wage.cut <- with(df, ifelse(cut.job %in% 1, 
+  "new.wage.cut" = ifelse(wage_cut %in% "half wage",
                                      new.wage.nocomp/job.cut.factor, 
-                                     new.wage.nocomp) )
-
-  return(df)
+                                     new.wage.nocomp)
+  )  
+  
 }
+
 df <- job.killer()
 
 # Compute total wage increase after ripple effects (yearly in billions)
@@ -2217,7 +2171,6 @@ wage.gain.total <-  df %>%
                    hhwgt.2016 * hrslyr * wkslyr , na.rm = TRUE) / 1e9
                 )  
 #with(df, hist(new.wage.final - wages.final, xlim = c(-10,10) , ylim=c(0,3e3) , breaks = 50) )
- 
 #df %>% mutate("wls" = ifelse(new.wage.final > wages.final, "winner", ifelse(new.wage.final == wages.final, "nothing", "loser"))) %>% with(wtd.table(wls, weights = hhwgt.2016))
 
 ```  
@@ -2276,7 +2229,7 @@ No interactions with other programs is assumed (SNAP or EITC).
 #FH:again, I would rather use the non wage growth
 
 non.wage.gr.f <- function(SA.nonwage.gr = param.nonwage.gr) {
-  ( ( gr.factor("Price Index, Personal Consumption", 2013, 2016) )^(1/4) - 1 ) *
+  ( ( gr.factor( "Personal CPI", 2013, 2016) )^(1/4) - 1 ) *
                SA.nonwage.gr
 }
 non.wage.gr <- non.wage.gr.f()
@@ -2285,7 +2238,7 @@ non.wage.gr <- non.wage.gr.f()
 #Separate HH income in to wage and non-wage
 all.income.f <- function(df.temp = df, non.wage.gr.temp = non.wage.gr) {
   df.temp$non.wage <- (df.temp$incp_ern - df.temp$incp_wag) 
-  df.temp$non.wage.2016 <- df.temp$non.wage * non.wage.gr.temp
+  df.temp$non.wage.2016 <- df.temp$non.wage * ( 1 + non.wage.gr.temp)^4
   
   df.temp <- df.temp %>% mutate("year.wage.1" = new.wage.final * (hrslyr * wkslyr) ) %>% 
         group_by(hhseq) %>% mutate("hhld.wage" = sum(year.wage.1, na.rm = TRUE),
@@ -2320,29 +2273,27 @@ df <- all.income.f()
 # Per capita agregate income has slightly less gains, probably due to hhld with winners and losers. 
 # wage.gain.total["Total wage gain"]
 
-losses <- with(df, sum(winners * hhwgt.2016) - param.factor.1 * sum(losers * hhwgt.2016) )  - param.net.benef
+losses <- with(df, sum(winners * hhwgt.2016) - 
+                 param.factor.1 * sum(losers * hhwgt.2016) )  - param.net.benef
 pop.dist <- wtd.table( with(df, findInterval(x = sq.inc.pc, 
-                                             vec = c(-Inf,11740, 6*11740, Inf)) ) , weights = df$hhwgt.2016 )$sum.of.weights
+                                             vec = c(-Inf,11740, 6*11740, Inf)) ) , 
+                       weights = df$hhwgt.2016 )$sum.of.weights
   
 losses.pc  <- as.numeric(losses) * param.dist.loss / pop.dist
   
-
 win.loss.f <- function(SA.factor.1 = param.factor.1, 
                        SA.net.benef = param.net.benef, losses.pc.temp = losses.pc, 
                        df.temp = df) {
-
+  # Asssing per capita balance losses to each indiv.
   df.temp$balance.loss <- as.numeric(losses.pc.temp[with(df.temp, findInterval(x = sq.inc.pc, 
                                                  vec = c(-Inf,11740, 6*11740, Inf) )) ]) 
-  # Add the result 
-  # START FROM final_dec() backguards. 
+  # Build quintiles of income based on status quo income
   bins <- with(df.temp,wtd.quantile(x = sq.inc.pc, probs = 1:4/5, weights = hhwgt.2016))
   df.temp$income.group <- with(df.temp, findInterval(x = sq.inc.pc, vec =  c(-Inf,bins) ))
-  
-  #Classifying by PLs and using sq.income/N.fam
-  quintiles <- with(df.temp,wtd.quantile(x = sq.inc.pc, probs = 1:4/5, weights = hhwgt.2016))
-  
-  #df$income.group <- with(df, findInterval(x = sq.inc.pc, vec =  quintiles ))
-  df.temp$income.group.1 <- with(df.temp, findInterval(x = sq.inc.pc, vec =  c(-Inf,11770*c(1,3,6),Inf)  ) )
+
+  #df$income.group <- with(df, findInterval(x = sq.inc.pc, vec =  bins ))
+  #classify income into 1, 3 and 6 povery lines
+  df.temp$income.group.1 <- with(df.temp, findInterval(x = sq.inc.pc, vec =  c(-Inf,11740*c(1,3,6),Inf)  ) )
   return(df.temp)
 }
 
@@ -2353,13 +2304,13 @@ final_fig1 <- df %>% select(new.inc.pc,sq.inc.pc, hhwgt.2016, balance.loss)  %>%
   mutate( "variation" = new.inc.pc - sq.inc.pc, 
           "sixthtile" = findInterval(x = sq.inc.pc, 
                                      vec = c(-Inf,11740, 11740*1:6, Inf) )) %>% 
-  ggplot(aes(sq.inc.pc, variation)) + 
+  ggplot(aes(sq.inc.pc, variation))  + 
   geom_hline(color = "gray", alpha = 0.5, yintercept = 0, size = 1) +
 
   geom_jitter( colour = "black", alpha = 1/30, size = 1/10, 
                position = position_jitter(height = 30, width = 15) ) + 
   coord_cartesian(xlim = c(0,2e5), 
-                    ylim = c(-5e3,5e3) ) +
+                    ylim = c(-5e3,5e3) )+
   theme_minimal() + 
   labs(y = "Change relative to no raise in min wage", 
        x = "Per capita income" , 
@@ -2380,13 +2331,13 @@ final_fig1 <- df %>% select(new.inc.pc,sq.inc.pc, hhwgt.2016, balance.loss)  %>%
               position = position_jitter(height = 30, width = 15) )  +
   geom_text(x = 15e3, y = -4e3,angle = 0, 
             label = c("1PL"), 
-            size = 3, colour = "red") + 
+            size = 3, colour = "red", data = data.frame()) + 
   geom_text(x = 12e3*6+3e3, y = -4e3,angle = 0, 
             label = c("6PL"), 
-            size = 3, colour = "red") +
+            size = 3, colour = "red",  data = data.frame()) +
   theme(plot.title = element_text(hjust = 0.5))
- #print(final_fig1)
- #ggsave("alt_pe1.png")
+#print(final_fig1)
+#ggsave("alt_pe1.png")
 
 # Compute variation by hhld - plot all the effects in same units (average per group)
 final_fig2 <- df %>% 
@@ -2444,6 +2395,7 @@ final_fig3 <- df %>%
 
 high.loss <-  as.numeric(final_fig3[max(final_fig3$income.group), "mean (bal lose)"])
 
+#THIS IS THE PLOT THAT I WANT TO OUPUT TO THE SHINY APP
 final_fig3 <- final_fig3 %>% 
   select(`mean (win)`, `mean (lose)`, `mean (bal lose)`, income.group) %>% 
   melt(value.variables=c("mean (win)", "mean (lose)") , id="income.group") %>% 
@@ -2473,16 +2425,14 @@ final_fig3 <- final_fig3 %>%
 ```{r, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results='hide'}
 # THIS IS THE PLOT THAT I OUTPUT FOR THE PAPER (AND THE INITIAL SA)
 # NEED TO MAKE SURE I AM EXPORTING IN SAME DIMENSIONS
- #print(final_fig3)  
- #ggsave("policy_est.png")
- # 5.89 x 3.69 in image
+# print(final_fig3)  
+# ggsave("policy_est.png")
+# 5.89 x 3.69 in image
 #NEED TO CHECk WHY RIPPLE EFFECTS AFFECT WAGE LOSES
-
 ```
 
 
 ```{r, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results='hide'}
-
 # Sample decision: value cost an benefits equally and distribution 1/q 
 sum( (df$winners - df$losers - df$balance.loss) * df$hhwgt.2016 )
 
