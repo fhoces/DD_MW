@@ -713,8 +713,11 @@ Define variable that tags population of interest
 <div id="toggleText9" style="display: none">   
 
 ```{r desc stats2,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, error=FALSE, collapse=TRUE}  
-# Tag population of interest 
-# DESCRIBE EACH CONDITION ##############################
+# Tag population of interest: 
+# Employed & 
+#   (not selfincorporated | not selfemployed) & 
+#   ( (not paid by the hour & (hours do not vary or missing in hours vary)) | paid by the hour ) &
+#   wages are not zero and not missing
 get.pop.int <- function(df.temp=df) {
   df.temp <- df.temp %>% mutate("pop_of_int" = (empl == 1 &
                (selfinc == 0 & selfemp == 0) & 
@@ -728,9 +731,9 @@ df <- get.pop.int()
 
 # Tables 1 - 4 where constructed to look at the data. Only table 4 is shown in the final output 
 
-# Table 1: DESCRIBE
+# Table 1: Describing population of interest (weighted and unweighted)
 # To compute the new total of workers we multiply the original weigths by the growth rate. 
-f_table1 <- function(var_name) {
+f_table1 <- function(var_name, title) {
   var1 <- dplyr::enquo(var_name)
   table_1 <- df  %>% 
      summarise("(1) Total" =
@@ -765,10 +768,11 @@ f_table1 <- function(var_name) {
 
   table_1 <- t(table_1)
   table_1 <- format(table_1, big.mark = ",", digits = 0, scientific = FALSE)
+  colnames(table_1) <- title
   return((table_1))
 }
 
-# Table 2: DESCRIBE
+# Table 2: summary statistics of wage variable (levels)
 #Summary stats 
 sum.stas1 <- function(x, wt) {
    c( "mean" = weighted.mean(x,w = wt, na.rm = TRUE),
@@ -801,7 +805,7 @@ f_table3 <- function() {
   colnames(table_3) <- "Perc"
   return(table_3)
 }
-
+ 
 # Table 4: DESCRIBE
 f_table4 <- function() {
   table_4 <- matrix(NA, 7, 2)
@@ -885,9 +889,8 @@ treemap.1 <- function(){
   ))
 }
 
-table_1 <- cbind(f_table1(final_weights), 
-                 f_table1(!is.na(final_weights)))
-colnames(table_1) <- c("N", "Unweighted")
+table_1 <- cbind(f_table1(final_weights, "N"), 
+                 f_table1(!is.na(final_weights), "Unweighted"))
 table_2 <- f_table2()
 table_3 <- f_table3()
 table_4 <- f_table4()
@@ -1032,7 +1035,8 @@ For the universe of interest (employed, salaried, with hourly wages or non varyi
 <div id="toggleText11" style="display: none">  
   
 ```{r Dist wage, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results="hide", error=FALSE, collapse=TRUE, fig.show='hold'}
-two_dist <- function() {
+# Plot with distribution of wages under the status quo in 2013 and 2016
+two_dist <- function() { 
   df  %>% 
     filter(pop_of_int==1 & wage3<=200)  %>% 
     select(wage3, wages.final, final_weights) %>%
@@ -1206,12 +1210,12 @@ Following the original report (footnote 25) we will consider salary workers as n
 <div id="toggleText15" style="display: none">  
 
 ```{r Estimating non compliance, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}
-#Percentage of total workers in 2013 that earn less that their states' minimum wage. 
-
+# Percentage of total workers in 2013 that earn less that their states' minimum wage. 
+# Universe is defined by "low wage" workers, with wages below $11.5 an hour.  
 # variable peernuot seems to be the most appropiate variable to indicate wether or nor receives tips
 # 1=YES; 2=NO
 # DESCRIBE
-f_non_comp_stats <- function(){
+f_non_comp_stats <- function(){ 
   df %>%
   select(wage3, state, final_weights, peernuot, pop_of_int, y2013, y2016)  %>%
     filter(pop_of_int == 1 & wage3<=11.5)  %>%
@@ -1323,7 +1327,7 @@ The table below presents the estimate from 2013 for all each component.
 <a id="displayText" href="javascript:toggle(16);">`R`</a>  
 <div id="toggleText17" style="display: none">  
 
-```{r compute Ns, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}
+```{r compute Ns, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE} 
 N.final.f <- function(df.temp = df, workers.gr.temp = workers.gr){
   aux.1 <-  bind_rows( 
     df.temp  %>% 
@@ -1382,7 +1386,6 @@ stats2 <- N.final.f()
 </div>
 
 ```{r table summary ,echo=FALSE, warning=FALSE, message=FALSE} 
-# (stats2[4,3]) - sum( (stats2[4, 1:2])*(stats2[2, 1:2]/sum(stats2[2, 1:2]))  )
 knitr::kable(stats2, caption="Characteristics of target population", digits = 2)
 ```  
 
@@ -1521,7 +1524,7 @@ eta.lit.f <- function(SA.eta.lit = param.eta.lit) - 0.1 * SA.eta.lit
 factor.extrap.f <- function(SA.factor.extrap = param.factor.extrap) 1/3 * SA.factor.extrap
 
 #DESCRIBE
-final.other.comp <- function(df.temp = df) {
+final.other.comp <- function(df.temp = df) { 
   stats3 <-  df.temp  %>% 
     filter(pop_of_int == 1) %>% 
     mutate("adult" = ifelse(age>=20, "Adult", "Teen") )  %>% 
@@ -1553,16 +1556,27 @@ delta.e1.f <- function(SA.N = param.N,
                        SA.F.adj = param.F.adj, 
                        SA.av.wage.var = param.av.wage.var, 
                        workers.gr.temp = workers.gr, 
-                       stats2.temp =stats2) {
+                       stats2.temp = stats2) {
   sum( (1 + workers.gr.temp)^3 *  
        stats2["Salary workers ($\\hat{ N_{employed} }$) (millions)",1:2] *  SA.N *
        stats2["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100 * SA.fract.minwage *
-       ( 1 - stats2["% of non compliers ($\\alpha_{1}$)",1:2]/100 - 0) * SA.noncomp *
+       ( 1 - SA.noncomp * stats2["% of non compliers ($\\alpha_{1}$)",1:2]/100 - 0) *
         c( eta.lit.f(SA.eta.lit) * factor.extrap.f(SA.factor.extrap) , eta.lit.f(SA.eta.lit) ) * 
        stats3["$F_{adj}$", "Teen"] * SA.F.adj *
        (stats3["$\\overline{\\%\\Delta w}$",1:2]/100) * SA.av.wage.var  
     ) + 0.05 * 0.9 
 }
+
+# N final = gr * N_employed * % below min wage * compliers 
+# Adj Fact = 1/(% below min wage) * nominal variation/average variation
+# Elasticity = elasticities * Extrap * Adj Fact * Avg variation
+
+# FUNCTION FOR N FINAL
+
+# FUNCTION FOR ADJ FACTOR
+
+# FUNCTION FOR ELASTICITY FINAL
+
 
 eta.lit <- eta.lit.f(SA.eta.lit = param.eta.lit)
 factor.extrap <- factor.extrap.f()
