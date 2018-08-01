@@ -1554,14 +1554,14 @@ delta.e1.f <- function(SA.N = param.N,
                        SA.av.wage.var = param.av.wage.var, 
                        workers.gr.temp = workers.gr, 
                        stats2.temp =stats2) {
-  sum( (1 + workers.gr.temp)^3 * 
+  sum( (1 + workers.gr.temp)^3 *  
        stats2["Salary workers ($\\hat{ N_{employed} }$) (millions)",1:2] *  SA.N *
        stats2["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100 * SA.fract.minwage *
        ( 1 - stats2["% of non compliers ($\\alpha_{1}$)",1:2]/100 - 0) * SA.noncomp *
         c( eta.lit.f(SA.eta.lit) * factor.extrap.f(SA.factor.extrap) , eta.lit.f(SA.eta.lit) ) * 
        stats3["$F_{adj}$", "Teen"] * SA.F.adj *
        (stats3["$\\overline{\\%\\Delta w}$",1:2]/100) * SA.av.wage.var  
-    ) + 0.05 * 0.9
+    ) + 0.05 * 0.9 
 }
 
 eta.lit <- eta.lit.f(SA.eta.lit = param.eta.lit)
@@ -1870,24 +1870,19 @@ wage.gr.bins <- wage.gr.bins.asec.f()
 # CAUTION: DO NOT apply 'ntile()' fn from dplry as is will split ties differently than 'cut()' and results will not
 # be comparable to STATA. 
 #NOT THE SAME (power of 3 intead of 4)
-aux.var  <- wtd.quantile(x = df$wage, probs = 1:9/10,weights = df$hhwgt)
 
 add.wages.1 <- function(df.temp = df, aux.var.temp = aux.var) {
+  aux.var  <- wtd.quantile(x = df$wage, probs = 1:9/10,weights = df$hhwgt)
   df.temp %>%
         mutate( wage.deciles = cut(wage, c(0, aux.var.temp, Inf) , 
                                 right = TRUE, include.lowest = TRUE) ,  
                 wage.adj1 =  wage * ( 1 + wage.gr.bins[wage.deciles] )^4) 
 }
 
-df <- add.wages.1()
 
-# To compute the new total of workers we multiply the original weigths by the growth rate. 
-new_total_n <- format(sum(df$hhwgt[df$pop_of_int==1] * 
-                            (1 + workers.gr)^4, 
-                          na.rm = TRUE), big.mark=",")
+
 # Here we adjust min wages
 # SAME
-
 wages.final.asec.org.f <- function(SA.states.raise = param.states.raise,
                                 SA.wages = param.wages) {
   with( df, ifelse(wage.adj1> y2016 * SA.states.raise,
@@ -1895,6 +1890,7 @@ wages.final.asec.org.f <- function(SA.states.raise = param.states.raise,
                    y2016 * SA.states.raise) ) * SA.wages
 }
 
+df <- add.wages.1()
 df$wages.final <- wages.final.asec.org.f()
 ```    
 </div>
@@ -1906,35 +1902,37 @@ df$wages.final <- wages.final.asec.org.f()
 <div id="toggleText27" style="display: none">  
 
 ```{r desc stats2 in forcast asec wage,  eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}
-df <- df %>% filter(!is.na(hhwgt))
-# WHY TABLE 4?
-table_8 <- matrix(NA, 7, 2)
-colnames(table_8)  <- c("2013", "2016: status quo")
-rownames(table_8) <- c("Salary workers", 
-                       "Median wage", 
-                       "% < 7.5","% < 9", 
-                       "% < 10.10", "% < 13", 
-                       "% < 15" )
-# Total in 2013
-table_8[1,1] <- table_5[3]
-# projected total in 2016
-table_8[1,2] <- new_total_n
-
-# Median wage before projections
-table_8[2,1] <- df %>% 
-  filter( (pop_of_int == 1) & !is.na(wage) ) %>% 
-  with(wtd.quantile( wage, weights = hhwgt, prob = c(.5) ) ) %>% 
-  round(digits = 2)
-
-# Median wage after projections
-table_8[2,1] <- df %>% 
-  filter( (pop_of_int == 1) & !is.na(wage) ) %>% 
-  with(wtd.quantile( wages.final, weights =  hhwgt * 
-                       (1 + workers.gr)^4, prob = c(.5) ) ) %>% 
-  round(digits = 2)
- 
-# Wage distribution in 2013
-table_8[3:7,1]  <- round(as.matrix(table_7[-1]), digits = 2)
+f_table_8 <- function() {
+  table_8 <- matrix(NA, 7, 2)
+  colnames(table_8)  <- c("2013", "2016: status quo")
+  rownames(table_8) <- c("Salary workers", 
+                         "Median wage", 
+                         "% < 7.5","% < 9", 
+                         "% < 10.10", "% < 13", 
+                         "% < 15" )
+  # Total in 2013
+  table_8[1,1] <- table_5[3]
+  # projected total in 2016
+  # To compute the new total of workers we multiply the original weigths by the growth rate. 
+  table_8[1,2] <-  format(sum(df$hhwgt[df$pop_of_int==1] * 
+                              (1 + workers.gr)^4, 
+                            na.rm = TRUE), big.mark=",")
+  
+  # Median wage before projections
+  table_8[2,1] <- df %>% 
+    filter( (pop_of_int == 1) & !is.na(wage) ) %>% 
+    with(wtd.quantile( wage, weights = hhwgt, prob = c(.5) ) ) %>% 
+    round(digits = 2)
+  
+  # Median wage after projections
+  table_8[2,1] <- df %>% 
+    filter( (pop_of_int == 1) & !is.na(wage) ) %>% 
+    with(wtd.quantile( wages.final, weights =  hhwgt * 
+                         (1 + workers.gr)^4, prob = c(.5) ) ) %>% 
+    round(digits = 2)
+   
+  # Wage distribution in 2013
+  table_8[3:7,1]  <- round(as.matrix(table_7[-1]), digits = 2)
 
 aux.1 <- df %>% 
   filter(pop_of_int == 1 & !is.na(wages.final)) %>% 
@@ -1945,9 +1943,11 @@ aux.1 <- df %>%
               "> $15" = weighted.mean(wages.final<15,w = hhwgt * (1 + workers.gr)^4) 
               )
 
-table_8[3:7,2] <- round( as.matrix(aux.1), digits = 2 )
+  table_8[3:7,2] <- round( as.matrix(aux.1), digits = 2 )
+  return(table_8)
+}
 
-# Histogram of wage below $20
+# Histogram of wages below $20 for 2013 and 2016
 p2 <-    df  %>% 
   filter(pop_of_int==1 & wage<=200)  %>% 
   select(wage.2013, wages.final, hhwgt, hhwgt.2013) %>%
@@ -1975,6 +1975,9 @@ p2 <-    df  %>%
                                            colour = "transparent") )+
     scale_fill_discrete(name=NULL,
                          labels=c("2013 (Forecast)", "2016 (Forecast)"))
+
+table_8 <- f_table_8()
+
 # print(p2) 
 # knitr::kable(table_8, caption="Comparison of 2013 and 2016 under the status quo", digits = 1)
 ```  
@@ -2236,7 +2239,6 @@ non.wage.gr.f <- function(SA.nonwage.gr = param.nonwage.gr) {
   ( ( gr.factor( "Personal CPI", 2013, 2016) )^(1/4) - 1 ) *
                SA.nonwage.gr
 }
-non.wage.gr <- non.wage.gr.f()
 
 #Adjust non-wage income  
 #Separate HH income in to wage and non-wage
@@ -2269,6 +2271,7 @@ all.income.f <- function(df.temp = df, non.wage.gr.temp = non.wage.gr) {
   return(df.temp)
 }
 
+non.wage.gr <- non.wage.gr.f()
 df <- all.income.f()
 
 # Computing differences in income 
@@ -2494,7 +2497,6 @@ table_9[ "aggr effect", ] <- t(as.data.frame(aux.1[,2]) )
 print(final_fig1)
 print(final_fig2)
 print(final_fig3)
-
 ```  
 
 <!-- 
@@ -2550,7 +2552,7 @@ dev.off()
 
 <div class="jumbotron">
   <p>Final replication output </p>  
-```{r final results, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE}
+```{r final results, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE} 
 
 output.template1.f <- cbind(output.template1, "Replication" = c(
   round(sum(table_9["wage gains",]), 1),  
