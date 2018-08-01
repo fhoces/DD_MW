@@ -404,6 +404,7 @@ gr.factor <- function(var1, init.year, last.year) {
     }
     return(rates[var1])
 }             
+
 trends.df <- dwld_and_write_d1()    
 clean.df <- select_vals(trends.df)
 growth.df <- compute_rates(clean.df)
