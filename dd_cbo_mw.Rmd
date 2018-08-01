@@ -20,7 +20,6 @@ editor_options:
 <!-- 
 The following chunk is to hide/display code with a specific title ('R' and 'Stata')
 -->
-
   <script language="javascript"> 
     function toggle(num) {
       var ele = document.getElementById("toggleText" + num);
@@ -35,8 +34,6 @@ The following chunk is to hide/display code with a specific title ('R' and 'Stat
       }
    } 
   </script>
-/Users/fhocesde/sample_pref.png
-git config --global http.sslCAInfo “/Users/fhocesde/smcacert.crt”
 
 <!-- 
 Following line is to get rpubs to recognize external links-->
@@ -72,6 +69,12 @@ The CBO report describes three policy estimates: the effects of raising the mini
 
 
 ```{r setup, include=FALSE}
+dir.create(file.path(tempdir(), ".checkpoint"), recursive = TRUE, showWarnings = FALSE)
+
+#library(checkpoint)
+#checkpoint("2018-07-31", checkpointLocation = tempdir())
+
+
 # Loading required libraries
 list.of.packages <- c("foreign", "weights", "survey", "Hmisc", 
                       "openxlsx", "rio", "highr", "XML", "RCurl", "treemap", 
@@ -331,7 +334,6 @@ dwld_and_write_d1 <- function()  {
                       destfile = "forec_in2013.xls", mode="wb")
   
     # might require this line in a fresh run: 
-    # if  ( !(require(XLConnect)) ) install.packages("XLConnect", repos= "http://cran.cnr.berkeley.edu/")
     # import from xls to data frame
     trends.df <- rio::import( "forec_in2013.xls" , sheet= "2. Calendar Year")
     
@@ -2218,6 +2220,7 @@ No interactions with other programs is assumed (SNAP or EITC).
 
 ### What is in the 2/3  
   - CBO acknowledges uncertainty in the estimates of elasticity due to possible technological changes in the future.  
+
 # Results 
 
 

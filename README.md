@@ -10,9 +10,9 @@ You are encourage to suggest modifications or updates to this analysis.
 
 
 ## To do's:
+ - write everything in short functions
  - Add checkpoint  
  - push rawdata to dataverse  
- - write everything in short functions
  - describe each function in detail  
  - sort rawdata, data, guesswork  
  - deploy shiny app  

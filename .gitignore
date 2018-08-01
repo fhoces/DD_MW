@@ -6,3 +6,4 @@
 !dd_cbo_mw.Rmd
 .Rproj.user
 .httr-oauth
+packrat/lib*/
