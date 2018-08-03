@@ -1549,7 +1549,6 @@ final.other.comp <- function(df.temp = df) {
   return(stats3)
 }
 
-stats3 <- final.other.comp()
 
 # N final = gr * N_employed * % below min wage * compliers 
 # Adj Fact = 1/(% below min wage) * nominal variation/average variation
@@ -1568,9 +1567,9 @@ f_n_final <- function (SA.N = param.N,
 
 # FUNCTION FOR ADJ FACTOR
 f_adj_fact <- function(SA.fract.minwage = param.fract.minwage, 
-                       SA.av.wage.var = param.av.wage.var) {
-  frac.below.mw <- table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100
-  avg.wg.inc <- stats3["$\\overline{\\%\\Delta w}$",1:2]/100 
+                       SA.av.wage.var = param.av.wage.var, 
+                       frac.below.mw = table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100, 
+                       avg.wg.inc = stats3["$\\overline{\\%\\Delta w}$",1:2]/100 ) {
   new.mw <- 10.10
   nom.wg.inc <- new.mw/7.25 - 1
   res1 <- (1/(frac.below.mw) * SA.fract.minwage) * 
@@ -1594,51 +1593,34 @@ f_delta_e <- function(SA.av.wage.var = param.av.wage.var) {
         SA.av.wage.var )+ 0.05 * 0.9 
 }
 
+stats3 <- final.other.comp()
 n_final <- f_n_final()
-adj_fact <- f_adj_fact(param.fract.minwage, param.av.wage.var)
-elas_final <- f_elast(var_adj_fact = 4.5)
+adj_fact <- f_adj_fact(SA.fract.minwage = param.fract.minwage, 
+                       SA.av.wage.var = param.av.wage.var,
+                       frac.below.mw = table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)","Teen"]/100, 
+                       avg.wg.inc = stats3["$\\overline{\\%\\Delta w}$","Teen"]/100 ) #1:2 |"Teen"
+
+adj_fact2 <- f_adj_fact(SA.fract.minwage = param.fract.minwage, 
+                       SA.av.wage.var = param.av.wage.var,
+                       frac.below.mw = table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100, 
+                       avg.wg.inc = stats3["$\\overline{\\%\\Delta w}$",1:2]/100 ) #1:2 |"Teen"
+
+#Report
+elas_final <- f_elast(var_adj_fact = 4.5) # adj_fact | 1, 4.5
 delta.e1 <- f_delta_e()
+# -0.5032739
 
+#Following methodology literally
+elas_final <- f_elast(var_adj_fact = adj_fact) # adj_fact | 1, 4.5
+delta.e2 <- f_delta_e()
 
+#Following methodology in spirit
+elas_final <- f_elast(var_adj_fact = adj_fact2) # adj_fact | 1, 4.5
+delta.e3 <- f_delta_e()
 
-#######REVIEW AND DELETE
-# FUNCTION FOR FINAL EFFECT ON EMPLOYMENT
-
-eta.lit <- eta.lit.f(SA.eta.lit = param.eta.lit)
-factor.extrap <- factor.extrap.f()
-stats3 <- final.other.comp(df.temp = df)
-
-# As it should have been computed according to doc
-delta.e2 <- sum( (1 + workers.gr)^3 * 
-                   table.n.final["Salary workers ($\\hat{ N_{employed} }$) (millions)",1:2] *  param.N *
-                   table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100 * param.fract.minwage *
-                   ( 1 - table.n.final["% of non compliers ($\\alpha_{1}$)",1:2]/100 - 0) * param.noncomp *
-                    c( eta.lit * factor.extrap , eta.lit ) *  
-                   (1/rep(table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)","Teen"]/100, 2) * param.fract.minwage) *                      ( 0.39 / ( rep(stats3["$\\overline{\\%\\Delta w}$","Teen"]/100,2)  * param.av.wage.var ) ) *
-                   (stats3["$\\overline{\\%\\Delta w}$",1:2]/100) * param.av.wage.var  
-                ) + 0.05 * 0.9
-
-# As it should have been computed according to methodology
-delta.e3 <- sum( (1 + workers.gr)^3 * 
-                   table.n.final["Salary workers ($\\hat{ N_{employed} }$) (millions)",1:2] *  param.N *
-                   table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100 * param.fract.minwage *
-                   ( 1 - table.n.final["% of non compliers ($\\alpha_{1}$)",1:2]/100 - 0) * param.noncomp *
-                    c( eta.lit * factor.extrap , eta.lit ) *  
-                   (1/(table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100) * param.fract.minwage) * 
-                   ( 0.39 / ( stats3["$\\overline{\\%\\Delta w}$",1:2]/100  * param.av.wage.var ) ) *
-                   (stats3["$\\overline{\\%\\Delta w}$",1:2]/100) * param.av.wage.var  
-                ) + 0.05 * 0.9
-
-# As I think that should actually be computed
-delta.e4 <- sum( (1 + workers.gr)^3 * 
-                   table.n.final["Salary workers ($\\hat{ N_{employed} }$) (millions)",1:2] *  param.N *
-                   table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100 * param.fract.minwage *
-                   ( 1 - table.n.final["% of non compliers ($\\alpha_{1}$)",1:2]/100 - 0) * param.noncomp *
-                    c( eta.lit * factor.extrap , eta.lit ) *  
-                   (stats3["$\\overline{\\%\\Delta w}$",1:2]/100) * param.av.wage.var  
-                ) + 0.05 * 0.9
-
-
+#I am not convinced that the adjustment is needed in the first place
+elas_final <- f_elast(var_adj_fact = 1) # adj_fact | 1, 4.5
+delta.e4 <- f_delta_e()
 
 # "Arbitrary" Sens. Anal to get lower unemp (0.9 * wage in c, 0.37 to 0.5, 1/3 to 1/4)
 # delta.e3 <- sum( stats3$N * stats3$`% Empl Below MW`/100 * ( 1 - stats3$`% of non compliers with adj`/100 - 0) *
@@ -1655,10 +1637,6 @@ delta.e4 <- sum( (1 + workers.gr)^3 *
 # abline(v = c(-1.96, -1.6, 1.6, 1.96), col = "red")  
 
 #knitr::kable(stats3, caption="Components of Elasticities", digits = 2) 
-eta.lit <- eta.lit.f(SA.eta.lit = param.eta.lit)
-factor.extrap <- factor.extrap.f()
-stats3 <- final.other.comp(df.temp = df)
-delta.e1 <- delta.e1.f()
 ```    
 </div>
 
@@ -1682,7 +1660,7 @@ As the unit of interest now is the family and detailed information on income is 
 <a id="displayText" href="javascript:toggle(21);">`R`</a>  
 <div id="toggleText21" style="display: none">   
 
-```{r loading data cps_asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}  
+```{r loading data cps_asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}   
 # DESCRIBE
 call.cps.asec.data <-  function() {
   data_use <- "CPER_ASEC"
@@ -1717,7 +1695,7 @@ add.base.vars <- function(SA.hours = param.hours,
 }
 
 df <- call.cps.asec.data()
-df <- add.base.vars()
+df <- add.base.vars() 
 
 # DESCRIBE (MAYBE WRAP IN FUNCTION)
 # Get state min wages for 2016 and 2013
