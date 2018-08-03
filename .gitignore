@@ -4,6 +4,7 @@
 !.gitignore
 !.README.md
 !dd_cbo_mw.Rmd
+!all_functions.md
 .Rproj.user
 .httr-oauth
 packrat/lib*/
