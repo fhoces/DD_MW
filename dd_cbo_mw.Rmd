@@ -5,14 +5,15 @@ author: "Download/Modify/Contribute the analysis [here](https://github.com/fhoce
 date: '`r paste("Last edit:", Sys.Date(), sep=" ")`'
 output:
   html_document:
-    toc: true
-    theme: united
-    toc_depth: 2
-    toc_float: true
-    collapsed: false
-    smooth_scroll: false
-    number_sections: true
     code_folding: show
+    collapsed: no
+    keep_md: yes
+    number_sections: yes
+    smooth_scroll: no
+    theme: united
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
 editor_options: 
   chunk_output_type: console
 ---
@@ -431,7 +432,7 @@ scalar workers_gr = 0.01550989
 
 In forecasting the wages, the CBO report describes that some wages will be reduced in response to the individual mandate from the Affordable Care Act. Given that no details of the adjustments are described in the report, we do not incorporate them in this dynamic document. 
 
-#### State level minimum wage adjustments   
+#### State level minimum wage adjustments {#state-min-wage}  
 
 CBO had to predict the future changes in the state level minimum wages. We use the actual values implemented by each state. The data comes from the Department of Labor ([here](https://www.dol.gov/whd/state/stateMinWageHis.htm)). 
 
@@ -1655,13 +1656,18 @@ In the first step towards obtaining the policy estimates presented in the [intro
 
 As the unit of interest now is the family and detailed information on income is needed, CBO performs the distributional analysis using a different data set from the Current Population Survey. Instead of the ORG, the following analysis uses the CPS Annual Social and Economic Supplement (ASEC) of March 2013. This data contains income information for the year 2012.  
 
-#### Code to load the data  
+#### Code to load the data and merge state minimum wages
+
+To the CPS ASEC data we also merge the data on state minimum wages describe in section [2.1.4.3](#state-min-wage)
+
 
 <a id="displayText" href="javascript:toggle(21);">`R`</a>  
 <div id="toggleText21" style="display: none">   
 
 ```{r loading data cps_asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}   
-# DESCRIBE
+# List all non-function objects that I need from here forward
+
+# Call data from CPS ASEC March 2013
 call.cps.asec.data <-  function() {
   data_use <- "CPER_ASEC"
   
@@ -1685,7 +1691,7 @@ call.cps.asec.data <-  function() {
   return(df)
 }
 
-# DESCRIBE
+# Add sensitivity analysis parameters to hours, weeks, weights
 add.base.vars <- function(SA.hours = param.hours, 
                           SA.weeks = param.weeks, 
                           SA.N = param.N) {
@@ -1694,20 +1700,24 @@ add.base.vars <- function(SA.hours = param.hours,
                 "hhwgt" = hhwgt * SA.N)
 }
 
+# Merge state min wage info
+add_minw <- function(df.temp = df) {
+  # Get state min wages for 2016 and 2013
+  st.minws <- state_min_w %>% 
+    select( c( "state_co","y2013" ,"y2016", "state") )%>% 
+    rename(state_la = state, state = state_co)
+  # prepare state key for merge
+  df <- df %>% 
+    mutate(state_la = as.character(as_factor(state)), 
+           state = as.numeric(state))  
+  # merge with state MW
+  df <- left_join(df, st.minws, "state")
+  return(df)
+}
+
 df <- call.cps.asec.data()
 df <- add.base.vars() 
-
-# DESCRIBE (MAYBE WRAP IN FUNCTION)
-# Get state min wages for 2016 and 2013
-st.minws <- state_min_w %>% 
-  select( c( "state_co","y2013" ,"y2016", "state") )%>% 
-  rename(state_la = state, state = state_co)
-# prepare state key for merge
-df <- df %>% 
-  mutate(state_la = as.character(as_factor(state)), 
-         state = as.numeric(state))  
-# merge with state MW
-df <- left_join(df, st.minws, "state")
+df <- add_minw(df)
 ```   
 
 </div>
@@ -1736,7 +1746,7 @@ f_pop_of_int <- function() {
   df <- df %>% mutate("pop_of_int" =  1 * (empl == 1 &
                 (selfinc == 0 & selfemp == 0) & 
                 !(incp_wag == 0 | is.na(incp_wag) ) )
-  )
+                )
   return(df)
 }
 
@@ -1818,7 +1828,7 @@ table_7 <- f_table_7()
 
 </div>
 
-#### Adjusting wages 1 
+#### Adjusting wages 1 REF EQ ABOVE
 As with the CPS ORG, an adjustment for wages is applied. Unlike the previous modification, where the adjustments were over a fraction of the population (those who did not report an hourly wage), our understanding is that CBO adjust the wages of all the population in this case.   
 
 The adjustments follows the following formula: 
@@ -1831,9 +1841,9 @@ $$
   
 Additional information needed from CBO: $\alpha$ and $G$ in this case.   
 
-#### Adjusting wages 2  
+#### Adjusting wages 2  NOT SURE
 
-CBO mentions that the "it found far fewer workers who would be directly affected by the change in the minimum wage than it had in its analysis of employment", using the CPS ASEC we get `r paste(round(table_7[ "> $10.10",]*100, 1), "%", sep="")` workers below the 10.10 threshold, while using the CPS ORG we `r paste(round(table_3[ "> $10.10",]*100, 1), "%", sep="")`. 
+CBO mentions that "it found far fewer workers who would be directly affected by the change in the minimum wage than it had in its analysis of employment", using the CPS ASEC we get `r paste(round(table_7[ "> $10.10",]*100, 1), "%", sep="")` workers below the 10.10 threshold in 2013, while using the CPS ORG we get`r paste(round(table_3[ "> $10.10",]*100, 1), "%", sep="")` in 2013. 
 
 We assume that this second adjustment are a linear transformation ("mostly by adjusting some workers’ wages up to the minimum wage projected to apply to them in 2016 under current law"):
 $$ 
@@ -1852,6 +1862,7 @@ The wage forecast is the same methodology as in section 2.  This methodology is 
 <a id="displayText" href="javascript:toggle(25);">`R`</a>  
 <div id="toggleText25" style="display: none"> 
 ```{r forecasting cps asec wage, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results = "hide"} 
+# MODIFY TO CALL PREVIOUS FUNCTIO
 #Wage adjutsment
 #CBO mentions that the lowest 10th percent gets a 2.9% growth in anual wage
 #I compute the anualized growth rate of wages and creat 10 bins of wage growth

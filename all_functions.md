@@ -84,9 +84,12 @@ delta.e1 <- f_delta_e()
 
 #ASEC
 
+# Call data from CPS ASEC March 2013
 df <- call.cps.asec.data()
+# Add sensitivity analysis parameters to hours, weeks, weights
 df <- add.base.vars()
-
+# Merge state min wage info
+df <- add_minw(df)
 
 df <- f_pop_of_int()
 table_5 <- f_table_5()
