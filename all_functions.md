@@ -83,6 +83,7 @@ delta.e1 <- f_delta_e()
 
 
 #ASEC
+#table.n.final
 
 # Call data from CPS ASEC March 2013
 df <- call.cps.asec.data()
@@ -91,71 +92,65 @@ df <- add.base.vars()
 # Merge state min wage info
 df <- add_minw(df)
 
+# Pop of interest: employed & (not self employed or self incorp) & (wage variable not zero and not missing)
 df <- f_pop_of_int()
+# Population size, employed and salaried
 table_5 <- f_table_5()
+# Descriptive stats of earnings, hours, and weeks.
 table_6 <- f_table_6()
+# Compute hourly wages, replace negative vales withs 0's
 df <- add.wage.var(df)
+# Summary stats for year 2013
 table_7 <- f_table_7()   
 
-
+# Computing annualized growth rate for wage
 wage.gr <- wage.gr.asec.f()
+# For workers
 workers.gr <- workers.gr.asec.f()  
+# Half of the groth gap between 1st and 10th decile.
 half.gap <- half.gap.asec.f()
+# Compute 10 rates of wage growth
 wage.gr.bins <- wage.gr.bins.asec.f()
 
+# Assign popultation to deciles according to 'wage' variable
 df <- add.wages.1()
+# Here we adjust min wages to 2016 levels
 df$wages.final <- wages.final.asec.org.f()
 
+# Descriptives of wage and population size (analogous to table 4 in CPS ORG)
 table_8 <- f_table_8()
+# Histogram of wages below $20 for 2013 and 2016
+p2 <- two_hist_asec()
 
-
+# Create new wage (after inc in min wage) & apply ripple effects
 df <- wage.ripple.f()
 
 # Get the number of workers whose wage would bebow 10.10 in the status quo (in millions)
-N_benes <- sum(df$hhwgt.2016[df$wages.final <= 10.10 & df$pop_of_int==1], na.rm = TRUE)/1e6
-
+n_benes <- n_benes_f()
 # Compute total wage increase (yearly, in billions) -without ripple effects and before destroying jobs-
-wage.inc <- with(df[df$below_min == 1 & df$pop_of_int==1, ],
-      sum((10.10 - wages.final) * hhwgt.2016 * hrslyr * wkslyr , na.rm = TRUE) ) / 1e9
-
+wage_inc <- wage_inc_f()
 # Total gain with ripple effects but without destroying any jobs  
-wage.inc.with.ripple <- df %>%
-      with( sum((new.wage - wages.final) *  
-                  hhwgt.2016 * hrslyr *
-                  wkslyr , na.rm = TRUE) ) / 1e9
+wage_inc_with_ripple <- wage_inc_with_ripple_f()
 
-# Apply ripple effects
-alpha.1 <- stats2["% of non compliers ($\\alpha_{1}$)", "Total"] * param.noncomp /100
+# Non-compliance parameter
+alpha.1 <- table.n.final["% of non compliers ($\\alpha_{1}$)", "Total"] * param.noncomp /100
+# Assign old wages to a % of the population (non-compliers)
+# Total gain with ripple effects but without destroying any jobs and accounting for non-compliance
 set.seed(123)
 df <- add.nocomp()
-
 # Total gain with ripple effects but without destroying any jobs and accounting for non-compliance
-wage.inc.with.ripple.non.comp <- df %>%
-    #filter(below_min == 0)  %>%
-      with( sum((new.wage.nocomp - wages.final) *  hhwgt.2016 * hrslyr * wkslyr , na.rm = TRUE) ) / 1e9
-
+wage.inc.with.ripple.non.comp <- wage.inc.with.ripple.non.comp_f()
 # Number of workers with wages below new min, that are eligible to receive wage inc (before job loses)
-N_benes_compliance_below_min <-  sum(df$hhwgt.2016[(df$wages.final !=
-                                                      df$new.wage.nocomp) & df$below_min==1],
-                                     na.rm = TRUE)/1e6
-#
-N_benes_compliance_above_min <-  sum(df$hhwgt.2016[(df$wages.final !=
-                                                      df$new.wage.nocomp) & df$below_min==0],
-                                     na.rm = TRUE)/1e6
-N_benes_compliance<- sum(df$hhwgt.2016[(df$wages.final !=
-                                          df$new.wage.nocomp)],
-                         na.rm = TRUE)/1e6
+N_benes_compliance_below_min <- N_benes_compliance_below_min_f()
+# Number of workers with wages above the new min, that receive a wage increase due to ripples.
+N_benes_compliance_above_min <- N_benes_compliance_above_min_f()
+# Total number of beneficiares of wage rise
+N_benes_compliance <- sum(df$hhwgt.2016[(df$wages.final !=df$new.wage.nocomp)], na.rm = TRUE)/1e6
+
 
 df <- job.killer()
-
-wage.gain.total <-  df %>%
-      summarise( "Total wage gain" =  sum( (new.wage.final - wages.final) *
-                   hhwgt.2016 * hrslyr * wkslyr , na.rm = TRUE) / 1e9 ,
-                "Total wage loss" = sum( (wages.final - cut.wage) *
-                   hhwgt.2016 * hrslyr * wkslyr , na.rm = TRUE) / 1e9,
-                "Total gain before JD" =  sum( (new.wage.final - cut.wage) *
-                   hhwgt.2016 * hrslyr * wkslyr , na.rm = TRUE) / 1e9
-                )  
+# Compute total wage increase after ripple effects (yearly in billions)
+wage.gain.total <- wage.gain.total_f()
 
 non.wage.gr <- non.wage.gr.f()
 df <- all.income.f()

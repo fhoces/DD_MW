@@ -847,8 +847,6 @@ f_table4 <- function() {
   return(table_4)
 }
 
-
-  
 ### Build first treemap
 #if (!(length(dev.list()) == 0)) { dev.off() }
 #x11()
@@ -1740,8 +1738,9 @@ $$
 <div id="toggleText23" style="display: none">  
 
 ```{r Descript stats1 cps asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE} 
-# Tag population of interest FH: (1) Need to deal with 598 NA's and (2) clarify that restrictions here are not 
-# exactly the same as CPS ORG.  
+# Tag population of interest FH: (1) Need to deal with 598 NA's and (2) clarify 
+# that restrictions here are not exactly the same as CPS ORG.  
+# Pop of interest: employed & (not self employed or self incorp) & (wage variable not zero and not missing)
 f_pop_of_int <- function() { 
   df <- df %>% mutate("pop_of_int" =  1 * (empl == 1 &
                 (selfinc == 0 & selfemp == 0) & 
@@ -1751,7 +1750,7 @@ f_pop_of_int <- function() {
 }
 
 # For CPS ASEC I am using the weights hhwgt
-# DESCRIBE
+# Population size, employed and salaried
 f_table_5 <- function() {
   table_5  <- df  %>% 
      summarise("(1) Total" =
@@ -1770,7 +1769,7 @@ f_table_5 <- function() {
   return(table_5)
 }
 
-#Summary stats of wage
+# Summary stats of wage
 sum.stas1 <- function(x, wt) {
    c( "mean" = weighted.mean(x,w = wt, na.rm = TRUE),
       "sd" = sqrt( wtd.var(x, weights = wt) ) , 
@@ -1778,7 +1777,7 @@ sum.stas1 <- function(x, wt) {
                  wtd.quantile( x, weights = wt, prob = c(.1, .9) ) )
 } 
 
-#DESCRIBE
+# Descriptive stats of earnings, hours, and weeks. 
 f_table_6 <- function() {
   table_6 <- df %>% 
     filter(pop_of_int == 1 & !is.na(hhwgt)) %>%
@@ -1802,7 +1801,7 @@ add.wage.var <- function(df) {
   return(df)
 }
 
-#DESCRIBE
+# Summary stats for year 2013
 f_table_7 <- function() {  
   table_7 <- df %>% 
     filter(pop_of_int == 1 & !is.na(wage)) %>%
@@ -1831,28 +1830,7 @@ table_7 <- f_table_7()
 #### Adjusting wages 1 REF EQ ABOVE
 As with the CPS ORG, an adjustment for wages is applied. Unlike the previous modification, where the adjustments were over a fraction of the population (those who did not report an hourly wage), our understanding is that CBO adjust the wages of all the population in this case.   
 
-The adjustments follows the following formula: 
-$$
-\begin{aligned}
-w_{ig} &= \alpha w^{raw}_{ig} - (1 - \alpha)  \overline{w^{raw}_{g}} \label{samp.eq1_1} \\
-\text{with:    } \quad \overline{w^{raw}_{g}} &= \frac{\sum_{g} w^{raw}_{ig} }{N_{g}} \nonumber 
-\end{aligned}
-$$ 
-  
-Additional information needed from CBO: $\alpha$ and $G$ in this case.   
-
-#### Adjusting wages 2  NOT SURE
-
-CBO mentions that "it found far fewer workers who would be directly affected by the change in the minimum wage than it had in its analysis of employment", using the CPS ASEC we get `r paste(round(table_7[ "> $10.10",]*100, 1), "%", sep="")` workers below the 10.10 threshold in 2013, while using the CPS ORG we get`r paste(round(table_3[ "> $10.10",]*100, 1), "%", sep="")` in 2013. 
-
-We assume that this second adjustment are a linear transformation ("mostly by adjusting some workers’ wages up to the minimum wage projected to apply to them in 2016 under current law"):
-$$ 
-\begin{aligned}
-\widetilde{w_{ig}} &= (1  + I(U \geq 0) \times F_{1}) w_{ig}I(g \in G_{1}) + \\
-&\quad w_{ig}( 1- I(g \in G_{1}))  \quad \text{with:  } U\sim Uniform(a,b) 
-\end{aligned}
-$$  
-
+The formula for the adjustments are the same as those propose in equation XXXX
 
 #### Forecasting wage
 The wage forecast is the same methodology as in section 2.  This methodology is applied to a different data set (CPS ASEC) and for one additional year (forecasting from 2012 to 2016) than with the CPS ORG data.
@@ -1862,7 +1840,6 @@ The wage forecast is the same methodology as in section 2.  This methodology is 
 <a id="displayText" href="javascript:toggle(25);">`R`</a>  
 <div id="toggleText25" style="display: none"> 
 ```{r forecasting cps asec wage, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results = "hide"} 
-# MODIFY TO CALL PREVIOUS FUNCTIO
 #Wage adjutsment
 #CBO mentions that the lowest 10th percent gets a 2.9% growth in anual wage
 #I compute the anualized growth rate of wages and creat 10 bins of wage growth
@@ -1877,7 +1854,7 @@ workers.gr.asec.f <- function(SA.worker.gr = param.worker.gr) {
   ( ( gr.factor("workers", 2013, 2016) )^(1/4) - 1 ) * SA.worker.gr
 }
 
-#SAME
+#SAME but calling above functions
 half.gap.asec.f <- function(SA.wage.gr = param.wage.gr, 
                      SA.base.growth = param.base.growth) {
   wage.gr.asec.f(SA.wage.gr) - SA.base.growth 
@@ -1889,17 +1866,10 @@ wage.gr.bins.asec.f <- function(SA.base.growth = param.base.growth,
         half.gap.asec.f(SA.wage.gr,SA.base.growth), length.out = 10)
 }
 
-wage.gr <- wage.gr.asec.f()
-workers.gr <- workers.gr.asec.f()  
-half.gap <- half.gap.asec.f()
-wage.gr.bins <- wage.gr.bins.asec.f()
-
-
-#WRAP IN FUNCTION AND DESCRIBE
-# CAUTION: DO NOT apply 'ntile()' fn from dplry as is will split ties differently than 'cut()' and results will not
-# be comparable to STATA. 
-#NOT THE SAME (power of 3 intead of 4)
-
+# Assign popultation to deciles according to 'wage' variable
+# CAUTION: DO NOT apply 'ntile()' fn from dplry as is will split ties differently than 'cut()' 
+# and results will not be comparable to STATA. 
+# NOT THE SAME (power of 4 intead of 3)
 add.wages.1 <- function(df.temp = df, aux.var.temp = aux.var) {
   aux.var  <- wtd.quantile(x = df$wage, probs = 1:9/10,weights = df$hhwgt)
   df.temp %>%
@@ -1908,9 +1878,7 @@ add.wages.1 <- function(df.temp = df, aux.var.temp = aux.var) {
                 wage.adj1 =  wage * ( 1 + wage.gr.bins[wage.deciles] )^4) 
 }
 
-
-
-# Here we adjust min wages
+# Here we adjust min wages to 2016 levels
 # SAME
 wages.final.asec.org.f <- function(SA.states.raise = param.states.raise,
                                 SA.wages = param.wages) {
@@ -1919,11 +1887,14 @@ wages.final.asec.org.f <- function(SA.states.raise = param.states.raise,
                    y2016 * SA.states.raise) ) * SA.wages
 }
 
+wage.gr <- wage.gr.asec.f()
+workers.gr <- workers.gr.asec.f()  
+half.gap <- half.gap.asec.f()
+wage.gr.bins <- wage.gr.bins.asec.f()
 df <- add.wages.1()
 df$wages.final <- wages.final.asec.org.f()
 ```    
 </div>
-
 
 ##### Statistics and code behind figure 4  
 
@@ -1931,6 +1902,7 @@ df$wages.final <- wages.final.asec.org.f()
 <div id="toggleText27" style="display: none">  
 
 ```{r desc stats2 in forcast asec wage,  eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}
+# Descriptives of wage and population size (analogous to table 4 in CPS ORG)
 f_table_8 <- function() {
   table_8 <- matrix(NA, 7, 2)
   colnames(table_8)  <- c("2013", "2016: status quo")
@@ -1977,7 +1949,8 @@ aux.1 <- df %>%
 }
 
 # Histogram of wages below $20 for 2013 and 2016
-p2 <-    df  %>% 
+two_hist_asec <- function(){
+  p2 <-    df  %>% 
   filter(pop_of_int==1 & wage<=200)  %>% 
   select(wage.2013, wages.final, hhwgt, hhwgt.2013) %>%
   gather(key = variable, value = value, -c(hhwgt.2013, hhwgt) ) %>% 
@@ -2004,9 +1977,11 @@ p2 <-    df  %>%
                                            colour = "transparent") )+
     scale_fill_discrete(name=NULL,
                          labels=c("2013 (Forecast)", "2016 (Forecast)"))
+  return(p2)
+}
 
 table_8 <- f_table_8()
-
+p2 <- two_hist_asec()
 # print(p2) 
 # knitr::kable(table_8, caption="Comparison of 2013 and 2016 under the status quo", digits = 1)
 ```  
@@ -2018,6 +1993,22 @@ table_8 <- f_table_8()
 print(p2) 
 knitr::kable(table_8, caption="Comparison of 2013 and 2016 under the status quo", digits = 1)
 ``` 
+
+#### Adjusting wages 2 MOVE PAST TABLE 8
+
+CBO mentions that "it found far fewer workers who would be directly affected by the change in the minimum wage than it had in its analysis of employment", using the CPS ASEC we get `r paste(round(table_8[ "% < 10.10",2]*100, 1), "%", sep="")` workers below the 10.10 threshold in 2016, while using the CPS ORG we get`r paste(round(table_4[ "% < 10.10",2]*100, 1), "%", sep="")` in 2016. Given that the differences are not so large, we do not perfomer this adjustment.
+
+<!--
+We assume that this second adjustment are a linear transformation ("mostly by adjusting some workers’ wages up to the minimum wage projected to apply to them in 2016 under current law"):
+$$ 
+\begin{aligned}
+\widetilde{w_{ig}} &= (1  + I(U \geq 0) \times F_{1}) w_{ig}I(g \in G_{1}) + \\
+&\quad w_{ig}( 1- I(g \in G_{1}))  \quad \text{with:  } U\sim Uniform(a,b) 
+\end{aligned}
+$$  
+
+--> 
+
 
 ## Imputing policy effects
 
@@ -2036,7 +2027,7 @@ MW' \quad o/w
 \end{cases}
 $$
 
-##### Code for ripple effects   
+##### Code for new min wage with ripple effects   
 
 <a id="displayText" href="javascript:toggle(29);">`R`</a>  
 <div id="toggleText29" style="display: none">  
@@ -2044,8 +2035,7 @@ $$
 ```{r positive effects,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
 # Increase population size (apply workers growth rate to all pop)
 
-# Create new wage (after inc in min wage)
-# Apply ripple effects
+# Create new wage (after inc in min wage) & apply ripple effects
 wage.ripple.f <- function(SA.ripple = param.ripple) {
   df %>% 
   mutate( "hhwgt.2016" = hhwgt * (1 + workers.gr)^4 , 
@@ -2073,39 +2063,45 @@ wage.ripple.f <- function(SA.ripple = param.ripple) {
   )
 }
 
-df <- wage.ripple.f()
-
 # Get the number of workers whose wage would bebow 10.10 in the status quo (in millions)
-N_benes <- sum(df$hhwgt.2016[df$wages.final <= 10.10 & df$pop_of_int==1], na.rm = TRUE)/1e6
+n_benes_f <- function() {
+  df %>% 
+  filter(wages.final <= 10.10 & pop_of_int==1) %>% 
+  summarise(sum(hhwgt.2016, na.rm = TRUE)/1e6) 
+}
 
 # Compute total wage increase (yearly, in billions) -without ripple effects and before destroying jobs-
-wage.inc <- with(df[df$below_min == 1 & df$pop_of_int==1, ], 
-      sum((10.10 - wages.final) * hhwgt.2016 * hrslyr * wkslyr , na.rm = TRUE) ) / 1e9 
+wage_inc_f <- function() {
+  df %>% 
+  filter(below_min == 1 & pop_of_int == 1 ) %>% 
+  transmute("gains" = (10.10 - wages.final) * hhwgt.2016 * hrslyr * wkslyr) %>%
+  summarise(sum(gains, na.rm = TRUE))/1e9 
+}
 
 # Total gain with ripple effects but without destroying any jobs  
-wage.inc.with.ripple <- df %>% 
-      with( sum((new.wage - wages.final) *  
-                  hhwgt.2016 * hrslyr * 
-                  wkslyr , na.rm = TRUE) ) / 1e9 
+wage_inc_with_ripple_f <- function() {
+  df %>% 
+  transmute("all_jobs_gains" = (new.wage - wages.final) * hhwgt.2016 *
+              hrslyr * wkslyr) %>% 
+  summarize( sum(all_jobs_gains, na.rm = TRUE) ) / 1e9
+}
+
+df <- wage.ripple.f()
+n_benes <- n_benes_f()
+wage_inc <- wage_inc_f()
+wage_inc_with_ripple <- wage_inc_with_ripple_f()
 ```  
 </div>
 
-
 #### Substracting non compliers  
 In section 2.2 we estimate that `r paste(round(table.n.final["% of non compliers ($\\alpha_{1}$)", "Total"], 1),"%", sep="")` of workers eligible for a rise would not receive such benefit. To account for this fraction of non compliers replace the same fraction of new wages with what would have receive under the status quo.  
-
 
 ##### Code to substract non compliers  
 
 <a id="displayText" href="javascript:toggle(31);">`R`</a>  
 <div id="toggleText31" style="display: none">  
-
 ```{r non compliesrs in asec,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
-# Apply ripple effects
-alpha.1 <- table.n.final["% of non compliers ($\\alpha_{1}$)", "Total"] * param.noncomp /100
-
 #Assign old wages to a % of the population (non-compliers)
-set.seed(123)
 add.nocomp <- function(df.temp=df, alpha.1.temp = alpha.1) {
   #randomly assign no compliance to alpha.1.temp% of the population
   df.temp %>% mutate("no.comply" = ifelse(pop_of_int==1 & wages.final<11.5,   
@@ -2119,27 +2115,38 @@ add.nocomp <- function(df.temp=df, alpha.1.temp = alpha.1) {
                                     ) 
 }
 
-df <- add.nocomp()
-
 # Total gain with ripple effects but without destroying any jobs and accounting for non-compliance
-wage.inc.with.ripple.non.comp <- df %>% 
+wage.inc.with.ripple.non.comp_f <- function(){
+  df %>% transmute("aux1" = (new.wage.nocomp - wages.final) *  hhwgt.2016 * hrslyr * wkslyr) %>% 
     #filter(below_min == 0)  %>% 
-      with( sum((new.wage.nocomp - wages.final) *  hhwgt.2016 * hrslyr * wkslyr , na.rm = TRUE) ) / 1e9 
+    summarise(sum(aux1, na.rm = TRUE) ) / 1e9 
+}
 
 # Number of workers with wages below new min, that are eligible to receive wage inc (before job loses)
-N_benes_compliance_below_min <-  sum(df$hhwgt.2016[(df$wages.final != 
-                                                      df$new.wage.nocomp) & df$below_min==1], 
-                                     na.rm = TRUE)/1e6
-#
-N_benes_compliance_above_min <-  sum(df$hhwgt.2016[(df$wages.final != 
-                                                      df$new.wage.nocomp) & df$below_min==0], 
-                                     na.rm = TRUE)/1e6
-N_benes_compliance<- sum(df$hhwgt.2016[(df$wages.final != 
-                                          df$new.wage.nocomp)], 
-                         na.rm = TRUE)/1e6
+N_benes_compliance_below_min_f <- function() {
+  df %>% filter((wages.final != new.wage.nocomp) & df$below_min==1) %>% 
+    summarise(sum(hhwgt.2016, na.rm = TRUE))/1e6 %>% as.double()
+}
+
+# Number of workers with wages above the new min, that receive a wage increase due to ripples.
+N_benes_compliance_above_min_f <- function() {
+  res1 <- df %>% 
+    filter((wages.final != new.wage.nocomp) & below_min==0) %>% 
+    summarise(sum(hhwgt.2016, na.rm = TRUE))/1e6
+  return(as.numeric(res1))
+}
 
 pt <- function(x) round(x, 1)
 
+# Non-compliance parameter
+alpha.1 <- table.n.final["% of non compliers ($\\alpha_{1}$)", "Total"] * param.noncomp /100
+set.seed(123)
+df <- add.nocomp()
+wage.inc.with.ripple.non.comp <- wage.inc.with.ripple.non.comp_f()
+N_benes_compliance_below_min <- N_benes_compliance_below_min_f()
+N_benes_compliance_above_min <- N_benes_compliance_above_min_f()
+# Total number of beneficiares of wage rise
+N_benes_compliance <- sum(df$hhwgt.2016[(df$wages.final !=df$new.wage.nocomp)], na.rm = TRUE)/1e6
 ``` 
 
 </div>
@@ -2147,7 +2154,7 @@ pt <- function(x) round(x, 1)
 After accounting for non compliance, the total number of workers that are potentially eligible for a raise is `r pt(N_benes_compliance)` million. Of that number `r pt(N_benes_compliance_below_min)` would have had a wage below the new minimum and `r pt(N_benes_compliance_above_min)` would have had a wage above 10.10, but receives a wage increase through ripple effects. We now impute job losses in order to obtain the final number of workers who benefit and lost from a raise in the minimum wage. 
 
 
-### Imputing job losses  
+### Imputing job losses  SIMPLIFY
 
 The imputation above so far is applied to all workers below the minimum wage (and the ripple effects). Now we need to remove the $\widehat{\Delta E} = `r round(delta.e1, 2)`$ million workers by imputing them a wage of 0. CBO chose to not move the wage all the way to 0 but to cut it in half and apply such imputation to $2\widehat{\Delta E}$. When destroying jobs CBO argued that the effect would be heavier on teenagers and low wage adults. We implement this in the following algorithm:
 
@@ -2163,7 +2170,7 @@ Replace $\tilde{w} = \tilde{w}/2$ if :
 <a id="displayText" href="javascript:toggle(33);">`R`</a>  
 <div id="toggleText33" style="display: none">  
 ```{r job destruction,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}  
-
+#DESCRIBE
 job.killer <- function(df.temp=df) {
   #Assign half of old wages to a % of the population (non-compliers)
   set.seed(123)
@@ -2194,10 +2201,9 @@ job.killer <- function(df.temp=df) {
   
 }
 
-df <- job.killer()
-
 # Compute total wage increase after ripple effects (yearly in billions)
-wage.gain.total <-  df %>% 
+wage.gain.total_f <- function(){
+  df %>% 
       summarise( "Total wage gain" =  sum( (new.wage.final - wages.final) * 
                    hhwgt.2016 * hrslyr * wkslyr , na.rm = TRUE) / 1e9 , 
                 "Total wage loss" = sum( (wages.final - cut.wage) * 
@@ -2205,9 +2211,12 @@ wage.gain.total <-  df %>%
                 "Total gain before JD" =  sum( (new.wage.final - cut.wage) * 
                    hhwgt.2016 * hrslyr * wkslyr , na.rm = TRUE) / 1e9
                 )  
+}
 #with(df, hist(new.wage.final - wages.final, xlim = c(-10,10) , ylim=c(0,3e3) , breaks = 50) )
 #df %>% mutate("wls" = ifelse(new.wage.final > wages.final, "winner", ifelse(new.wage.final == wages.final, "nothing", "loser"))) %>% with(wtd.table(wls, weights = hhwgt.2016))
 
+df <- job.killer()
+wage.gain.total <- wage.gain.total_f()
 ```  
 </div>
 
