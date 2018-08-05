@@ -813,9 +813,9 @@ f_table4 <- function() {
   colnames(table_4)  <- c("2013", "2016: status quo")
   rownames(table_4) <- c("Salary workers", 
                          "Median wage", 
-                         "% < 7.5","% < 9", 
-                         "% < 10.10", "% < 13", 
-                         "% < 15" )
+                         "< 7.5","< 9", 
+                         "< 10.10", "< 13", 
+                         "< 15" )
   
   table_4[1,1] <- table_1[7,1]
   table_4[1,2] <- format(sum(df$final_weights[df$pop_of_int==1] * 
@@ -831,15 +831,15 @@ f_table4 <- function() {
   
   aux.1 <- df %>% 
     filter(pop_of_int == 1 & !is.na(wages.final)) %>% 
-      summarise("> $7.50" = weighted.mean(wages.final<7.5,
+      summarise("< 7.5" = weighted.mean(wages.final<7.5,
                                           w = final_weights * (1 + workers.gr)^3), 
-                "> $9" = weighted.mean(wages.final<9,
+                "< 9" = weighted.mean(wages.final<9,
                                        w = final_weights * (1 + workers.gr)^3), 
-                "> $10.10" = weighted.mean(wages.final<10.10,
+                "< 10.10" = weighted.mean(wages.final<10.10,
                                            w = final_weights * (1 + workers.gr)^3), 
-                "> $13" = weighted.mean(wages.final<13,
+                "< 13" = weighted.mean(wages.final<13,
                                         w = final_weights * (1 + workers.gr)^3), 
-                "> $15" = weighted.mean(wages.final<15,
+                "< 15" = weighted.mean(wages.final<15,
                                         w = final_weights * (1 + workers.gr)^3) 
                 )
   
@@ -1908,9 +1908,9 @@ f_table_8 <- function() {
   colnames(table_8)  <- c("2013", "2016: status quo")
   rownames(table_8) <- c("Salary workers", 
                          "Median wage", 
-                         "% < 7.5","% < 9", 
-                         "% < 10.10", "% < 13", 
-                         "% < 15" )
+                         "< 7.5","< 9", 
+                         "< 10.10", "< 13", 
+                         "< 15" )
   # Total in 2013
   table_8[1,1] <- table_5[3]
   # projected total in 2016
@@ -1937,11 +1937,11 @@ f_table_8 <- function() {
 
 aux.1 <- df %>% 
   filter(pop_of_int == 1 & !is.na(wages.final)) %>% 
-    summarise("> $7.50" = weighted.mean(wages.final<7.5,w = hhwgt * (1 + workers.gr)^4), 
-              "> $9" = weighted.mean(wages.final<9,w = hhwgt * (1 + workers.gr)^4), 
-              "> $10.10" = weighted.mean(wages.final<10.10,w = hhwgt * (1 + workers.gr)^4), 
-              "> $13" = weighted.mean(wages.final<13,w = hhwgt * (1 + workers.gr)^4), 
-              "> $15" = weighted.mean(wages.final<15,w = hhwgt * (1 + workers.gr)^4) 
+    summarise("< 7.5" = weighted.mean(wages.final<7.5,w = hhwgt * (1 + workers.gr)^4), 
+              "< 9" = weighted.mean(wages.final<9,w = hhwgt * (1 + workers.gr)^4), 
+              "< 10.10" = weighted.mean(wages.final<10.10,w = hhwgt * (1 + workers.gr)^4), 
+              "< 13" = weighted.mean(wages.final<13,w = hhwgt * (1 + workers.gr)^4), 
+              "< 15" = weighted.mean(wages.final<15,w = hhwgt * (1 + workers.gr)^4) 
               )
 
   table_8[3:7,2] <- round( as.matrix(aux.1), digits = 2 )
@@ -1996,7 +1996,7 @@ knitr::kable(table_8, caption="Comparison of 2013 and 2016 under the status quo"
 
 #### Adjusting wages 2 MOVE PAST TABLE 8
 
-CBO mentions that "it found far fewer workers who would be directly affected by the change in the minimum wage than it had in its analysis of employment", using the CPS ASEC we get `r paste(round(table_8[ "% < 10.10",2]*100, 1), "%", sep="")` workers below the 10.10 threshold in 2016, while using the CPS ORG we get`r paste(round(table_4[ "% < 10.10",2]*100, 1), "%", sep="")` in 2016. Given that the differences are not so large, we do not perfomer this adjustment.
+CBO mentions that "it found far fewer workers who would be directly affected by the change in the minimum wage than it had in its analysis of employment", using the CPS ASEC we get `r paste(round(as.numeric(table_8[ "< 10.10",2])*100, 1), "%", sep="")` workers below the 10.10 threshold in 2016, while using the CPS ORG we get`r paste(round(as.numeric(table_4[ "< 10.10",2])*100, 1), "%", sep="")` in 2016. Given that the differences are not so large, we do not perfomer this adjustment.
 
 <!--
 We assume that this second adjustment are a linear transformation ("mostly by adjusting some workers’ wages up to the minimum wage projected to apply to them in 2016 under current law"):
@@ -2170,18 +2170,19 @@ Replace $\tilde{w} = \tilde{w}/2$ if :
 <a id="displayText" href="javascript:toggle(33);">`R`</a>  
 <div id="toggleText33" style="display: none">  
 ```{r job destruction,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}  
-#DESCRIBE
-job.killer <- function(df.temp=df) {
-  #Assign half of old wages to a % of the population (non-compliers)
+# Assign half of old wages to a % of the population (2* delta.e1)
+job.killer <- function(df.temp= df) {
+  #Assign half of old wages to a % of the population (2* delta.e1)
   set.seed(123)
   job.cut.factor <- 2
   frac_to_destroy <- df %>% 
     filter(pop_of_int == 1 & wages.final <10.10) %>% 
     summarise(job.cut.factor * (- delta.e1) * 1e6 / sum(hhwgt.2016))
     
-  #randomly assign no compliance to alpha.1.temp% of the population
-  df.temp %>% mutate("wage_cut" = ifelse(pop_of_int==1 & wages.final<10.10,   
-                                    ifelse(runif(length(new.wage) )< as.numeric(frac_to_destroy), 
+  #randomly assign no compliance to frac_to_destroy% of the population
+  df.temp %>% 
+    mutate("wage_cut" = ifelse(pop_of_int==1 & wages.final<10.10,
+                               ifelse(runif(length(new.wage) )< as.numeric(frac_to_destroy), 
                                            "half wage", "same wage"),
                                     NA), 
   # Compute variables for each scenario
@@ -2251,14 +2252,13 @@ CBO argues that the overall effect on the economy is positive and of \$2 billion
 ### Quantifying loses  
 - Mix gains and loses. 
 - Output lost - increase in aggregate demand (!) 
-- net gain (!) of 2 billion dollars.  
+- Net gain of 2 billion dollars.  
 
 ### Distributional effects   
 - Only results, no methodology at all!  This is probably the most important (and overlooked part of the report)
 
 ### Interaction with other programs 
 No interactions with other programs is assumed (SNAP or EITC).     
-
 
 ### What is in the 2/3  
   - CBO acknowledges uncertainty in the estimates of elasticity due to possible technological changes in the future.  

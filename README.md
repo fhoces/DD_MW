@@ -17,3 +17,4 @@ You are encourage to suggest modifications or updates to this analysis.
  - sort rawdata, data, guesswork  
  - deploy shiny app  
  - number all equations
+ - review/disable warning messages
