@@ -1926,7 +1926,7 @@ f_table_8 <- function() {
     round(digits = 2)
   
   # Median wage after projections
-  table_8[2,1] <- df %>% 
+  table_8[2,2] <- df %>% 
     filter( (pop_of_int == 1) & !is.na(wage) ) %>% 
     with(wtd.quantile( wages.final, weights =  hhwgt * 
                          (1 + workers.gr)^4, prob = c(.5) ) ) %>% 
@@ -2265,7 +2265,6 @@ No interactions with other programs is assumed (SNAP or EITC).
 
 # Results 
 
-
 <a id="displayText" href="javascript:toggle(35);">`R`</a>  
 <div id="toggleText35" style="display: none">  
 
@@ -2509,49 +2508,34 @@ final_fig3 <- final_fig3_f()
 
 
 ```{r, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results='hide'}
-# Sample decision: value cost an benefits equally and distribution 1/q 
-sum( (df$winners - df$losers - df$balance.loss) * df$hhwgt.2016 )
-
-#need to change 3 for median below
-dist.pref.f  <- function(rho, qi, qt) (1 - rho*(qi - 3))/sum(1 - rho*(1:qt - 3)) * qt
-
- # sum cost a and benefits at the individual level
-final_dec.f <- function(x, df.temp = df) {
-  sum( (df.temp$winners - df.temp$losers - df.temp$balance.loss) * df.temp$hhwgt.2016 * 
-         dist.pref.f( rho = x, qi = df.temp$income.group, qt = max(df.temp$income.group)) ) /1e9
+# Table proposal for gains and losses by income group and income variation
+table_9_f <- function() {
+  table_9 <- matrix(NA, ncol = 4, nrow = 5)
+  colnames(table_9)  <- c("<1PL", "[1PL, 3PL)", "[3PL, 6PL)", ">6PL")
+  rownames(table_9)  <- c("wage gains", "wage loses", "other loses",
+                          "aggr effect", "N_i")
+  
+  table_9["N_i", ] <- wtd.table(with(df, income.group.1) , weights = df$hhwgt.2016)[[2]]/1e6
+    
+  aux.1 <- df %>% group_by(income.group.1)  %>% summarise(sum((winners) * hhwgt.2016, na.rm = TRUE)/1e9)
+  table_9[ "wage gains", ] <- t(as.data.frame(aux.1[,2]) )
+    
+  #Wage loses: compared to SQ
+  aux.1 <- df %>% group_by(income.group.1)  %>% summarise(sum((losers) * hhwgt.2016, na.rm = TRUE)/1e9)
+  table_9[ "wage loses", ] <- t(as.data.frame(aux.1[,2]) )
+  
+  #Imputing the balnce of the losses
+  table_9[ "other loses", ] <- as.numeric(losses) * c(0.01, rep(.29/2, 2), 0.70)/1e9
+  
+  aux.1 <- df %>% 
+    group_by(income.group.1)  %>% 
+      summarise(sum((winners - losers - balance.loss) * 
+                      hhwgt.2016, na.rm = TRUE)/1e9)
+  table_9[ "aggr effect", ] <- t(as.data.frame(aux.1[,2]) )
+  return(table_9)
 }
-# weigth final CBA by quintile
 
-
-
-#abline(v = inc.quartiles, col = "blue", lty =1, cex=3)
-
-
-
-table_9 <- matrix(NA, ncol = 4, nrow = 5)
-colnames(table_9)  <- c("<1PL", "[1PL, 3PL)", "[3PL, 6PL)", ">6PL")
-rownames(table_9)  <- c("wage gains", "wage loses", "other loses",
-                        "aggr effect", "N_i")
-
-table_9["N_i", ] <- wtd.table(with(df, income.group.1) , weights = df$hhwgt.2016)[[2]]/1e6
-  
-aux.1 <- df %>% group_by(income.group.1)  %>% summarise(sum((winners) * hhwgt.2016, na.rm = TRUE)/1e9)
-table_9[ "wage gains", ] <- t(as.data.frame(aux.1[,2]) )
-  
-  
-#Wage loses: compared to SQ
-aux.1 <- df %>% group_by(income.group.1)  %>% summarise(sum((losers) * hhwgt.2016, na.rm = TRUE)/1e9)
-table_9[ "wage loses", ] <- t(as.data.frame(aux.1[,2]) )
-
-#Imputing the balnce of the losses
-table_9[ "other loses", ] <- as.numeric(losses) * c(0.01, rep(.29/2, 2), 0.70)/1e9
-
-aux.1 <- df %>% 
-  group_by(income.group.1)  %>% 
-    summarise(sum((winners - losers - balance.loss) * 
-                    hhwgt.2016, na.rm = TRUE)/1e9)
-table_9[ "aggr effect", ] <- t(as.data.frame(aux.1[,2]) )
-
+table_9 <- table_9_f()
 #FH: questions:
 #    - what is the precise way to define family in CPS?
 #    - what is the standard way to choose one obs per family?
@@ -2568,27 +2552,112 @@ print(final_fig2)
 print(final_fig3)
 ```  
 
+
+```{r format final results, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE} 
+# Formatting output to match CBO's: aggregate effects
+output.template1.final_f <- function(){
+    cbind(output.template1, "Replication" = c(
+    round(sum(table_9["wage gains",]), 1),  
+    round(sum(table_9["wage loses",]), 1), 
+    round(sum(table_9["other loses",]), 1),  
+    2,  
+    paste(round(N_benes_compliance, 1),round(N_benes_compliance_below_min, 1), sep = "/"  ), 
+    round(-delta.e1,1) )
+    ) 
+}
+
+# Formatting output to match CBO's: distributional effects
+output.template2.final_f <- function(){
+  cbind(t(output.template2),
+        "Replication loses" =  -round((table_9[ "other loses", ]), 1)
+        ,"Replication NE" = round(table_9[ "aggr effect", ], 1) )
+}
+
+output.template1.final <- output.template1.final_f()
+output.template2.final <- output.template2.final_f()
+```
+
+<div class="jumbotron">
+  <p>Final replication output </p>  
+```{r print final output, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE}
+knitr::kable(
+  list(
+    output.template1.final,
+    t(output.template2.final)
+  ),
+  caption = 'Policy estimates in CBO report and Replication Results', booktabs = TRUE, 
+  align = 'c'
+)
+```   
+  <p><a class="btn btn-primary btn-lg" href="https://github.com/fhoces/dd_mw">Learn more</a></p>
+</div>
+
+
 <!-- 
+# Extensions 
 
-We combine wage gains ($\Delta^{+} W_{i}$), wage loses ($\Delta^{-}W_{i}$) and balance loses ($BL_{i}$) at the individual level to obtain a final effect ($FE_{i}$):
+```{r extensions, }
+knitr::kable(round(table_9), caption="Summary of effect of raising the minimum wage", digits = 1)
+mod.output.template
+```  
+
+--> 
+
+
+
+
+When a policy analysis has achieved high levels of TR for each standard, it is possible to conduct a sensitivity analysis for each component used in the policy analysis. For this exercise it is particularly useful to have all of the outputs of the policy analysis (policy estimates) in the same units, and to clearly identify the dimensions to be normatively aggregated by policy makers. 
+
+For our case study, the original CBO report presented the benefits and costs in different units: wage gains specific for families that have a net wage increase due to the new minimum wage, wage losses for specific families that have net wage decrease due to job loss, and average income lost for all families that is used to pay for the wage increase, labeled from now on balance losses, and distributed across poverty line bins (less than one FPL, between one and three FPL, etc). 
+
+Taking the DD to the highest level of TR in the workflow standard implies that these benefits and costs have to be translated into the same units. For this purpose all of the policy estimates are expressed in terms of average per-capita income gain/loss, across quintiles of income. 
+
+With five quintiles and three types of policy estimates (net wage gain, net wage loss, and balance loss), the dimensions of the analysis becomes too large even when looking at a few parameters. As an illustration of how all dimensions could be condensed into a single number, I model the  different valuations of hypothetical policy makers using additive weights for each policy estimate and weights to account for different redistributional preferences. The result is a welfare function ($W(\cdot)$) that combines all of the policy estimates and personal valuations of a given policy maker.  
+
+Formally,  $W$ can be defined as the weighted sum of policy estimates for the wage gain ($wg_{i}$), wage losses ($wl_{i}$) and balance losses ($bl_{i}$) across all individuals, where each policy estimate receives a weight $\omega_{wg}, \omega_{wl}, \omega_{bl}$, and the distributional preferences are a function of the income quintile of each individual $\omega^{d}_{i}(Q_{i}, \rho)$:
 
 $$
-\begin{aligned}
-FE_{i} &= \omega_1 \Delta^{+} W_{i} + \omega_2 \Delta^{-} W_{i} + (1 - \omega_1 - \omega_2 ) BL_{i} 
-\end{aligned}
+\begin{equation}
+W(\rho) = \sum_{i \in N} \left( \omega_{wg}  wg_{i} + \omega_{wl} wl_{i} + \omega_{bl} bl_{i} \right) \omega^{d}_{i}(Q_{i}, \rho) \\
+\text{with:}\nonumber \\
+\omega^{d}_{i}(Q_{i}, \rho) = \frac{(1 - \rho(Q_{i} - Q_{median}) ) }{\sum_{i} \omega^{d}_{i}(Q_{i}) } Q_{max} \quad \text{for }  \rho \in \left(-\frac{1}{2}, \frac{1}{2} \right) \nonumber
+\label{NPE}
+\tag{N}
+\end{equation}
 $$
 
-Where $\omega_1, \omega_2$ represente the subjective valuation of each effect from the perspective of the policy maker. When aggregating all the final effects the policy maker also will have to make a subjective valuation regarding the redistribution of weatlth. 
+$Q_i$ represent the quintile in the income distribution (1 the lowest and $Q_{max}=5$ the highest), and $\rho$ parametrizes the preferences towards redistribution ($\rho<0$ dislikes redistribution, $\rho>0$ likes redistribution). The parameter $\rho$ is restricted to values between $-\frac{1}{2}$ and  $\frac{1}{2}$ so all weights are strictly positive. This function was designed ad-hoc only to illustrate a possible set of preferences used by policy makers when observing the policy estimates. 
 
-$$
-\begin{aligned}
-FE &= \sum_{i \in N} \frac{ FE_{i} }{D(y_i)^\rho} 
-\end{aligned}
-$$
 
-Where $D(y_i)$ is the rank function for per capita income $y_{i}$ that returns the decile of income (1 the lowest and 10 the highest), and $\rho$ parametrizes the preferences towards redistribution ($\rho<0$ dislikes redistribution, $\rho>0$ likes redistribution)
+<!-- 
+%REQUIRES UPDATES WHEN DATA CHANGES
+
+As an illustration, figure \ref{pol_est} presents values of $W(\cdot)$ for different redistributional preferences ($\rho$) assuming $\omega_{WG} = \omega_{WL} = \omega_{BL}$. In this example a policy maker that values redistribution positively ( with $\rho = 0.1$), will see a value of \$9.7 billion dollars over increasing this minimum wage. Conversely, a policy maker that dislikes redistribution (with a $\rho = -0.1$), would value the proposed policy at -\$5.7 billion dollars. Part of sensitivity analysis is performed over this two sample positions ($W(\rho = 0.1), W(\rho = -0.1)$), so those two values are highlighted in the figure.
+
+
 
 ```{r SA2, eval=FALSE,echo=FALSE, warning=FALSE, message=FALSE}
+# Sample decision: value cost an benefits equally and distribution 1/q 
+# sum( (df$winners - df$losers - df$balance.loss) * df$hhwgt.2016 )
+
+dist.pref.f  <- function(rho, qi, qt){ 
+  med_q <- median(1:qt)
+  (1 - rho*(qi - med_q))/sum(1 - rho*(1:qt - med_q)) * qt
+}
+
+# sum cost a and benefits at the individual level
+final_dec.f <- function(x, df.temp = df) {
+  sum( (df.temp$winners - df.temp$losers - df.temp$balance.loss) * df.temp$hhwgt.2016 * 
+         dist.pref.f( rho = x, qi = df.temp$income.group, qt = max(df.temp$income.group)) ) /1e9
+}
+
+
+#    print("Percentage variation relative to base scenario:")
+#    print( (sapply(c(-0.1, 0.1), function(y) final_dec.f(df.temp = df4, y) ) - v0)/v0 )
+
+
+
+
 quartz()
 df <- df.final
 png("sample_pref.png", width=2*440, height=2*350, res = 100)
@@ -2619,60 +2688,6 @@ dev.off()
 
 --> 
 
-<div class="jumbotron">
-  <p>Final replication output </p>  
-```{r final results, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE} 
-
-output.template1.f <- cbind(output.template1, "Replication" = c(
-  round(sum(table_9["wage gains",]), 1),  
-  round(sum(table_9["wage loses",]), 1), 
-  round(sum(table_9["other loses",]), 1),  
-  2,  
-  paste(round(N_benes_compliance, 1),round(N_benes_compliance_below_min, 1), sep = "/"  ), 
-  round(-delta.e1,1) )
-  )  
-
-
-
-table_9[ "wage gains", ] <- t(as.data.frame(aux.1[,2]) )
-  
-  
-#Wage loses: compared to SQ
-#aux.1 <- df %>% group_by(income.group)  %>% summarise(mean((sq.inc.pc - cut.income.pc), na.rm = TRUE))  
-#table_9[ "wage loses", ] <- t(as.data.frame(aux.1[,2]) )
-
-#Imputing the balnce of the losses
-table_9[ "other loses", ] <- as.numeric(losses) * c(0.01, rep(.29/2, 2), 0.70)/1e9
-
-
-output.template2.f <- cbind(t(output.template2), "Replication loses" =  -round((table_9[ "other loses", ]), 1) 
-                          ,"Replication NE" = round(table_9[ "aggr effect", ], 1) )
-
-knitr::kable(
-  list(
-    output.template1.f,
-    t(output.template2.f)
-  ),
-  caption = 'Policy estimates in CBO report and Replication Results', booktabs = TRUE, 
-  align = 'c'
-)
-
-#mod.output.template
-
-```   
-  <p><a class="btn btn-primary btn-lg" href="https://github.com/fhoces/dd_mw">Learn more</a></p>
-</div>
-
-
-<!-- 
-# Extensions 
-
-```{r extensions, }
-knitr::kable(round(table_9), caption="Summary of effect of raising the minimum wage", digits = 1)
-mod.output.template
-```  
-
---> 
 
 ```{r sa, final results, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
 

@@ -81,7 +81,6 @@ elas_final <- f_elast(var_adj_fact = 4.5) # adj_fact | 1, 4.5
 # Employmemt effect = N final * Elasticity * Avg variation - other factors
 delta.e1 <- f_delta_e()
 
-
 #ASEC
 #table.n.final
 
@@ -169,3 +168,11 @@ final_fig1 <- final_fig1_f()
 final_fig2 <- final_fig2_f()
 # Compute variation by hhld - plot all the effects in same units (average per group) with quintiles instead of poverty lines.
 final_fig3 <- final_fig3_f()
+
+# Table proposal for gains and losses by income group and income variation
+table_9 <- table_9_f()
+
+# Formatting output to match CBO's: aggregate effects
+output.template1.final <- output.template1.final_f()
+# Formatting output to match CBO's: distributional effects
+output.template2.final <- output.template2.final_f()
