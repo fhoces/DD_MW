@@ -147,21 +147,25 @@ N_benes_compliance_above_min <- N_benes_compliance_above_min_f()
 # Total number of beneficiares of wage rise
 N_benes_compliance <- sum(df$hhwgt.2016[(df$wages.final !=df$new.wage.nocomp)], na.rm = TRUE)/1e6
 
-
+# Assign half of old wages to a % of the population (2* delta.e1)
 df <- job.killer()
 # Compute total wage increase after ripple effects (yearly in billions)
 wage.gain.total <- wage.gain.total_f()
 
+#Anualized growth rate for non-wage income
 non.wage.gr <- non.wage.gr.f()
+#Adjust non-wage income, compute per cap incomes, and compute amount won/loss per person  
 df <- all.income.f()
-
-
-losses <- with(df, sum(winners * hhwgt.2016) -
-                 param.factor.1 * sum(losers * hhwgt.2016) )  - param.net.benef
-pop.dist <- wtd.table( with(df, findInterval(x = sq.inc.pc,
-                                             vec = c(-Inf,11740, 6*11740, Inf)) ) ,
-                       weights = df$hhwgt.2016 )$sum.of.weights
-
-losses.pc  <- as.numeric(losses) * param.dist.loss / pop.dist
-
-df <- win.loss.f()    
+#Computing statistic of income variation
+aux1 <- inc_ch_stats();
+losses.pc <- aux1[["losses.pc"]]; losses <- aux1[["losses"]]; pop.dist <- aux1[["pop.dist"]]
+# Compute balance losses and classify income by PL groups
+df <- win.loss.f()
+#Compute quintiles based on percapita income (status quo)
+df <- add.quintiles()
+# Compute variation by hhld - plot all the effects
+final_fig1 <- final_fig1_f()
+# Compute variation by hhld - plot all the effects in same units (average per group)
+final_fig2 <- final_fig2_f()
+# Compute variation by hhld - plot all the effects in same units (average per group) with quintiles instead of poverty lines.
+final_fig3 <- final_fig3_f()
