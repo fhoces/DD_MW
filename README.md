@@ -10,9 +10,9 @@ You are encourage to suggest modifications or updates to this analysis.
 
 
 ## To do's:
-- [ ] write everything in short functions      DONE
-- [ ] describe each function in detail         DONE  
-- [ ] Add checkpoint                           SEMI-DONE
+- [x] write everything in short functions      
+- [x] describe each function in detail         
+- [x] Add checkpoint                           
 - [ ] push rawdata to dataverse  
 - [ ] sort rawdata, data, guesswork  
 - [ ] clean DD and add more detail             

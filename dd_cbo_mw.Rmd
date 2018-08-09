@@ -2617,7 +2617,7 @@ mod.output.template
 
 --> 
 
-
+## Sensitivity Analysis
 
 
 When a policy analysis has achieved high levels of TR for each standard, it is possible to conduct a sensitivity analysis for each component used in the policy analysis. For this exercise it is particularly useful to have all of the outputs of the policy analysis (policy estimates) in the same units, and to clearly identify the dimensions to be normatively aggregated by policy makers. 
@@ -2651,7 +2651,7 @@ $Q_i$ represent the quintile in the income distribution (1 the lowest and $Q_{ma
 # Remove all data and keep all the functions
 rm(list = setdiff(ls(), lsf.str()))
 
-param.wage.gr <- 1.0
+param.wage.gr <- 1.0 
 param.worker.gr <- 1 
 
 param.eta.lit <- 1.0 #
@@ -2695,15 +2695,15 @@ state_mw_raw <- dwld_and_write_d2()
 state_min_w <- clean_d2()
 
 ### Compute annual growth rate of wages from 2013 to 2016
-wage.gr <- wage.gr.f()
+wage.gr <- wage.gr.f(SA.wage.gr = param.wage.gr)
 ### Compute annual growth rate of workers from 2013 to 2016
-workers.gr <- workers.gr.f()
+workers.gr <- workers.gr.f(SA.worker.gr = param.worker.gr)
 ### Compute the gap between average wage growth and the growth of the lowest decile (assume by CBO)  
-half.gap <- half.gap.f()
+half.gap <- half.gap.f(SA.wage.gr = param.wage.gr, SA.base.growth = param.base.growth)
 ### 10 wage growth bins starting from lowest assumed value to 2 times the gap computed above
-wage.gr.bins <- wage.gr.bins.f()
+wage.gr.bins <- wage.gr.bins.f(SA.base.growth = param.base.growth, SA.wage.gr = param.wage.gr)
 ### Apply differential growth rate to wages (by deciles)
-df <- wages.final.cps.org.f()
+df <- wages.final.cps.org.f(SA.states.raise = param.states.raise, SA.wages = param.wages)
 
 ### Tag population of interest
 df <- get.pop.int()
