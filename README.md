@@ -10,12 +10,12 @@ You are encourage to suggest modifications or updates to this analysis.
 
 
 ## To do's:
- - write everything in short functions      DONE
- - describe each function in detail         DONE  
- - Add checkpoint                           SEMI-DONE
- - push rawdata to dataverse  
- - sort rawdata, data, guesswork  
- - clean DD and add more detail             
- - deploy shiny app  
- - number all equations
- - review/disable warning messages
+- [ ]write everything in short functions      DONE
+- [ ]describe each function in detail         DONE  
+- [ ]Add checkpoint                           SEMI-DONE
+- [ ]push rawdata to dataverse  
+- [ ]sort rawdata, data, guesswork  
+- [ ]clean DD and add more detail             
+- [ ]deploy shiny app  
+- [ ]number all equations
+- [ ]review/disable warning messages

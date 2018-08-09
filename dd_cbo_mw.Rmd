@@ -98,7 +98,7 @@ for (folder in c("rawdata", "data", "documentation", "output", "paper", "scripts
 ## NEED TO ADD CHECKPOINT
 
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(cache = FALSE)
+knitr::opts_chunk$set(cache = TRUE)
 
 statapath <- "/Applications/Stata/Stata.app/Contents/MacOS/Stata"
 
@@ -109,20 +109,29 @@ display_code <- TRUE #set false when outputing to pdf (maybe?)
 ```{r table with output,  eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE, cache=TRUE}  
 # This is summary of all the policy estimates presented in the report
 # Aggregate effects
-output.template1 <- matrix(" ???",nrow = 6, ncol = 1)
-rownames(output.template1) <- c("wage gains (billions of $)", "wage losses (bns of $)", "Balance losses (bns of $)", 
-                                "Net effect (bns of $)", "# of Wage gainers (millions)", "#of Wage losers (millions)")
-colnames(output.template1) <- "Effects/Policy Estimates"
-
-output.template1[,"Effects/Policy Estimates" ] <- c("31", "~5", "~24" , "2", "16.5", "0.5")
+output.template1_f <- function(){
+  output.template1 <- matrix(" ???",nrow = 6, ncol = 1)
+  rownames(output.template1) <- c("wage gains (billions of $)", "wage losses (bns of $)", "Balance losses (bns of $)", 
+                                  "Net effect (bns of $)", "# of Wage gainers (millions)", "#of Wage losers (millions)")
+  colnames(output.template1) <- "Effects/Policy Estimates"
+  
+  output.template1[,"Effects/Policy Estimates" ] <- c("31", "~5", "~24" , "2", "16.5", "0.5")
+  return(output.template1)
+}
 
 #Some distributional effects
-output.template2 <- matrix(" ???",nrow = 2, ncol = 4)
-rownames(output.template2) <- c("Balance losses (bns of $)", "Net effect (bns of $)")
-colnames(output.template2) <- c("<1PL", "[1PL, 3PL)", "[3PL, 6PL)", ">6PL")
+output.template2_f <- function(){
+  output.template2 <- matrix(" ???",nrow = 2, ncol = 4)
+  rownames(output.template2) <- c("Balance losses (bns of $)", "Net effect (bns of $)")
+  colnames(output.template2) <- c("<1PL", "[1PL, 3PL)", "[3PL, 6PL)", ">6PL")
+  
+  output.template2["Balance losses (bns of $)", ] <- c("~0.3", "~3.4", "~3.4", "~17")
+  output.template2["Net effect (bns of $)", ] <- c("5", "12", "2", "-17")
+  return(output.template2)
+}
 
-output.template2["Balance losses (bns of $)", ] <- c("~0.3", "~3.4", "~3.4", "~17")
-output.template2["Net effect (bns of $)", ] <- c("5", "12", "2", "-17")
+output.template1 <- output.template1_f()
+output.template2 <- output.template2_f()
 
 knitr::kable(
   list(
@@ -1994,7 +2003,7 @@ print(p2)
 knitr::kable(table_8, caption="Comparison of 2013 and 2016 under the status quo", digits = 1)
 ``` 
 
-#### Adjusting wages 2 MOVE PAST TABLE 8
+#### Adjusting wages 2
 
 CBO mentions that "it found far fewer workers who would be directly affected by the change in the minimum wage than it had in its analysis of employment", using the CPS ASEC we get `r paste(round(as.numeric(table_8[ "< 10.10",2])*100, 1), "%", sep="")` workers below the 10.10 threshold in 2016, while using the CPS ORG we get`r paste(round(as.numeric(table_4[ "< 10.10",2])*100, 1), "%", sep="")` in 2016. Given that the differences are not so large, we do not perfomer this adjustment.
 
@@ -2237,45 +2246,33 @@ Forecasts of population growth were the same for working population. For non wor
 <a id="displayText" href="javascript:toggle(34);">`R`</a>  
 <div id="toggleText34" style="display: none">  
 ```{r final income vars,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}   
-
-#FOR THE FIRST TIME WE NOW LOOK AT OVERALL INCOME AND THE WHOLE POPULATION
-#FH:again, I would rather use the non wage growth
-
 #Anualized growth rate for non-wage income
 non.wage.gr.f <- function(SA.nonwage.gr = param.nonwage.gr) {
   ( ( gr.factor( "Personal CPI", 2013, 2016) )^(1/4) - 1 ) *
                SA.nonwage.gr
 }
 
-#Adjust non-wage income, compute per cap incomes, and compute amount won/loss per person  
+#Adjust non-wage income, compute per cap incomes, and compute amount won/loss per person   
 all.income.f <- function(df.temp = df, non.wage.gr.temp = non.wage.gr) {
   #Separate HH income in to wage and non-wage and apply growth rate 
   df.temp$non.wage <- (df.temp$incp_ern - df.temp$incp_wag)  
   df.temp$non.wage.2016 <- df.temp$non.wage * ( 1 + non.wage.gr.temp)^4
   
-  # Generate per cap income based on new wages (after policy)
-  df.temp <- df.temp %>% mutate("year.wage.1" = new.wage.final * (hrslyr * wkslyr) ) %>% 
-        group_by(hhseq) %>% mutate("hhld.wage" = sum(year.wage.1, na.rm = TRUE),
+  # Generate per cap income based on new wages (after policy) and old wages
+  df.temp <- df.temp %>% mutate("year.wage.1" = new.wage.final * (hrslyr * wkslyr) , 
+                                "year.wage.2" = wages.final * (hrslyr * wkslyr) ) %>% 
+        group_by(hhseq) %>% mutate("hhld.wage1" = sum(year.wage.1, na.rm = TRUE),
+                                   "hhld.wage2" = sum(year.wage.2, na.rm = TRUE),
                                    "hhld.non.wage" = sum(non.wage.2016, na.rm = TRUE), 
-                                   "hhld.income" = hhld.wage + hhld.non.wage, 
+                                   "hhld.income1" = hhld.wage1 + hhld.non.wage, 
+                                   "hhld.income2" = hhld.wage2 + hhld.non.wage,
                                    "N.fam" = n(), 
-                                    "new.inc.pc" = hhld.income/N.fam) %>% 
-                                    select(-(hhld.wage:N.fam) )
-  # Generate pc inc before the new wages  
-  df.temp <- df.temp %>% mutate("year.wage.2" = wages.final * (hrslyr * wkslyr) ) %>% 
-        group_by(hhseq) %>% mutate("hhld.wage" = sum(year.wage.2, na.rm = TRUE),
-                                   "hhld.non.wage" = sum(non.wage.2016, na.rm = TRUE), 
-                                   "hhld.income" = hhld.wage + hhld.non.wage, 
-                                   "N.fam"= n(), 
-                                    "sq.inc.pc" = hhld.income/N.fam) %>% 
-                                    select(-(hhld.wage:N.fam) ) %>% ungroup()
-  # compute amount won/loss per person 
-  df.temp$winners = with(df.temp, ifelse(new.inc.pc > sq.inc.pc, 
-                               new.inc.pc - sq.inc.pc, 
-                               0) )
-  df.temp$losers = with(df.temp, - ifelse(new.inc.pc < sq.inc.pc, 
-                               new.inc.pc - sq.inc.pc, 
-                               0) )
+                                   "new.inc.pc" = hhld.income1/N.fam, 
+                                   "sq.inc.pc" = hhld.income2/N.fam) %>% 
+                                    select(-(hhld.wage1:N.fam) ) %>% ungroup() %>% 
+    # compute amount won/loss per person 
+    mutate("winners" = ifelse(new.inc.pc > sq.inc.pc, new.inc.pc - sq.inc.pc, 0), 
+           "losers" =  - ifelse(new.inc.pc < sq.inc.pc, new.inc.pc - sq.inc.pc, 0) )
   return(df.temp)
 }
 
@@ -2338,7 +2335,11 @@ df <- add.quintiles()
 </div>
 
 
-### Other income losses ADD MORE EMPHASIS   
+<!-- 
+ADD MORE EMPHASIS to Other income losses (mayve separate the code that builds that var)
+--> 
+
+### Other income losses 
 Income losses from a reduction in profits ($\Delta^{-}\pi$) and an increase in aggregate prices ($\Delta^{+}P$) is estimated to be distributed as following: 1% of the losses for those below the poverty line (PL), 29% for those between 1 and 6 PL, and 70% for those above 6PL. 
 
 
@@ -2544,15 +2545,7 @@ table_9 <- table_9_f()
 
 </div>
 
-
-
-
-```{r SA1, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE}
-print(final_fig1)
-print(final_fig2)
-print(final_fig3)
-```  
-
+## Original format
 
 ```{r format final results, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE} 
 # Formatting output to match CBO's: aggregate effects
@@ -2593,6 +2586,26 @@ knitr::kable(
   <p><a class="btn btn-primary btn-lg" href="https://github.com/fhoces/dd_mw">Learn more</a></p>
 </div>
 
+## Suggested new output  
+
+Say something about alternative 1
+
+```{r alt_output1, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE}
+print(final_fig1)
+```  
+
+Say something about alternative 2
+
+```{r alt_output2, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE}
+print(final_fig2)
+```  
+
+Say something about alternative 3
+
+```{r alt_output3, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE}
+print(final_fig3)
+```  
+
 
 <!-- 
 # Extensions 
@@ -2628,6 +2641,223 @@ W(\rho) = \sum_{i \in N} \left( \omega_{wg}  wg_{i} + \omega_{wl} wl_{i} + \omeg
 $$
 
 $Q_i$ represent the quintile in the income distribution (1 the lowest and $Q_{max}=5$ the highest), and $\rho$ parametrizes the preferences towards redistribution ($\rho<0$ dislikes redistribution, $\rho>0$ likes redistribution). The parameter $\rho$ is restricted to values between $-\frac{1}{2}$ and  $\frac{1}{2}$ so all weights are strictly positive. This function was designed ad-hoc only to illustrate a possible set of preferences used by policy makers when observing the policy estimates. 
+
+
+
+```{r all funs, eval=FALSE, echo=FALSE}
+# The base growth rate of wages will determine the dispersion of wage growth, the mean wage groth rate will be given by the 10 year economic forecast. 
+#data inputs:
+
+# Remove all data and keep all the functions
+rm(list = setdiff(ls(), lsf.str()))
+
+param.wage.gr <- 1.0
+param.worker.gr <- 1 
+
+param.eta.lit <- 1.0 #
+param.factor.extrap <- 1.0
+param.base.growth <- 0.024 * 1.0
+param.N <- 1.0
+param.fract.minwage <- 1.0
+param.noncomp <- 1.0
+param.F.adj <- 1.0
+param.av.wage.var <- 1.0
+param.wages <- 1.0 ####
+param.nonwage.gr <- 1.0
+param.hours <- 1.0
+param.weeks <- 1.0
+param.factor.1 <- 1
+param.net.benef <- 2e9*1.0
+param.ripple <- c("scope_below" = 8.7*1, "scope_above" = 11.5*1.0, "intensity" = 0.5*1.0)
+param.dist.loss <- c(0.01, 0.29, 0.70) #c(0.2, 0.4, 0.40) #c(0.39567218, 0.53851506, 0.06581275) 
+param.jobcut <- 1
+param.states.raise <- 1.0
+
+# Aggregate effects
+output.template1 <- output.template1_f()
+#Some distributional effects
+output.template2 <- output.template2_f()
+
+### Call data from CPS ORG
+df <- call.cps.org.data()
+
+### Download and write economic forecast data from CBO
+trends.df <- dwld_and_write_d1()    
+### Select relevant indicators/variables
+clean.df <- select_vals(trends.df)
+### Compute growth rates for each indicator
+growth.df <- compute_rates(clean.df)
+
+
+### Get raw data on MW
+state_mw_raw <- dwld_and_write_d2()
+### Get clean data on MW
+state_min_w <- clean_d2()
+
+### Compute annual growth rate of wages from 2013 to 2016
+wage.gr <- wage.gr.f()
+### Compute annual growth rate of workers from 2013 to 2016
+workers.gr <- workers.gr.f()
+### Compute the gap between average wage growth and the growth of the lowest decile (assume by CBO)  
+half.gap <- half.gap.f()
+### 10 wage growth bins starting from lowest assumed value to 2 times the gap computed above
+wage.gr.bins <- wage.gr.bins.f()
+### Apply differential growth rate to wages (by deciles)
+df <- wages.final.cps.org.f()
+
+### Tag population of interest
+df <- get.pop.int()
+### Describing population of interest (weighted and unweighted)
+table_1 <- cbind(f_table1(final_weights, "N"), f_table1(!is.na(final_weights), "Unweighted"))
+### Table 2: summary statistics of wage variable (levels)
+table_2 <- f_table2()
+### Table 3: distribution of the population by wages levels
+table_3 <- f_table3()
+### Table 4: combination of tables 1 - 3
+table_4 <- f_table4()
+
+### Get data for treemap 1
+universe.1 <- data_for_treemap1()
+### Plot treemap with distribution of labor force in 2013
+aux.1 <- treemap.1()
+
+### Plot with distribution of wages under the status quo in 2013 and 2016
+p <- two_dist()
+print(p)
+
+### Get data for treemap 2
+universe.1 <- data_for_treemap2()
+### Treemap with distribution of labor for and wages
+aux.2 <- treemap.2()
+
+### Compute the percentage of non-compliers, with and w/o adjusment for tipped workers
+non.comp.stats <- f_non_comp_stats()
+### Table 4 in DD (elements to compute N final)
+table.n.final <- N.final.f()
+
+### Elasticity from the literature  
+eta.lit <- eta.lit.f(SA.eta.lit = param.eta.lit)
+### Extrapolation factor used by CBO
+factor.extrap <- factor.extrap.f()
+### All remaining components required to compute effect on employment
+stats3 <- final.other.comp()
+### N final = gr * N_employed * % below min wage * compliers
+n_final <- f_n_final()
+### Adj Fact = 1/(% below min wage) * nominal variation/average variation
+### adj_fact takes literal version from CBO report (last line: "Teen")
+adj_fact <- f_adj_fact(SA.fract.minwage = param.fract.minwage,
+                       SA.av.wage.var = param.av.wage.var,
+                       frac.below.mw = table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)","Teen"]/100,
+                       avg.wg.inc = stats3["$\\overline{\\%\\Delta w}$","Teen"]/100 )
+
+### adj_fact2 takes methodological version from CBO report (last line: 1:2)
+adj_fact2 <- f_adj_fact(SA.fract.minwage = param.fract.minwage,
+                       SA.av.wage.var = param.av.wage.var,
+                       frac.below.mw = table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100,
+                       avg.wg.inc = stats3["$\\overline{\\%\\Delta w}$",1:2]/100 )
+
+### Elasticity = elasticities * Extrap * Adj Fact
+elas_final <- f_elast(var_adj_fact = 4.5) ### adj_fact | 1, 4.5
+### Employmemt effect = N final * Elasticity * Avg variation - other factors
+delta.e1 <- f_delta_e()
+
+### ASEC
+
+### Call data from CPS ASEC March 2013
+df <- call.cps.asec.data()
+### Add sensitivity analysis parameters to hours, weeks, weights
+df <- add.base.vars()
+### Merge state min wage info
+df <- add_minw(df)
+
+### Pop of interest: employed & (not self employed or self incorp) & (wage variable not zero and not missing)
+df <- f_pop_of_int()
+### Population size, employed and salaried
+table_5 <- f_table_5()
+### Descriptive stats of earnings, hours, and weeks.
+table_6 <- f_table_6()
+### Compute hourly wages, replace negative vales withs 0's
+df <- add.wage.var(df)
+### Summary stats for year 2013
+table_7 <- f_table_7()   
+
+### Computing annualized growth rate for wage
+wage.gr <- wage.gr.asec.f()
+### For workers
+workers.gr <- workers.gr.asec.f()  
+### Half of the groth gap between 1st and 10th decile.
+half.gap <- half.gap.asec.f()
+### Compute 10 rates of wage growth
+wage.gr.bins <- wage.gr.bins.asec.f()
+
+### Assign popultation to deciles according to 'wage' variable
+df <- add.wages.1()
+### Here we adjust min wages to 2016 levels
+df$wages.final <- wages.final.asec.org.f()
+
+### Descriptives of wage and population size (analogous to table 4 in CPS ORG)
+table_8 <- f_table_8()
+### Histogram of wages below $20 for 2013 and 2016
+p2 <- two_hist_asec()
+
+### Create new wage (after inc in min wage) & apply ripple effects
+df <- wage.ripple.f()
+
+### Get the number of workers whose wage would bebow 10.10 in the status quo (in millions)
+n_benes <- n_benes_f()
+### Compute total wage increase (yearly, in billions) -without ripple effects and before destroying jobs-
+wage_inc <- wage_inc_f()
+### Total gain with ripple effects but without destroying any jobs  
+wage_inc_with_ripple <- wage_inc_with_ripple_f()
+
+### Non-compliance parameter
+alpha.1 <- table.n.final["% of non compliers ($\\alpha_{1}$)", "Total"] * param.noncomp /100
+### Assign old wages to a % of the population (non-compliers)
+### Total gain with ripple effects but without destroying any jobs and accounting for non-compliance
+set.seed(123)
+df <- add.nocomp()
+### Total gain with ripple effects but without destroying any jobs and accounting for non-compliance
+wage.inc.with.ripple.non.comp <- wage.inc.with.ripple.non.comp_f()
+### Number of workers with wages below new min, that are eligible to receive wage inc (before job loses)
+N_benes_compliance_below_min <- N_benes_compliance_below_min_f()
+### Number of workers with wages above the new min, that receive a wage increase due to ripples.
+N_benes_compliance_above_min <- N_benes_compliance_above_min_f()
+### Total number of beneficiares of wage rise
+N_benes_compliance <- sum(df$hhwgt.2016[(df$wages.final !=df$new.wage.nocomp)], na.rm = TRUE)/1e6
+
+### Assign half of old wages to a % of the population (2* delta.e1)
+df <- job.killer()
+### Compute total wage increase after ripple effects (yearly in billions)
+wage.gain.total <- wage.gain.total_f()
+
+### Anualized growth rate for non-wage income
+non.wage.gr <- non.wage.gr.f()
+### Adjust non-wage income, compute per cap incomes, and compute amount won/loss per person  
+df <- all.income.f()
+### Computing statistic of income variation
+aux1 <- inc_ch_stats();
+losses.pc <- aux1[["losses.pc"]]; losses <- aux1[["losses"]]; pop.dist <- aux1[["pop.dist"]]
+### Compute balance losses and classify income by PL groups
+df <- win.loss.f()
+### Compute quintiles based on percapita income (status quo)
+df <- add.quintiles()
+### Compute variation by hhld - plot all the effects
+final_fig1 <- final_fig1_f()
+### Compute variation by hhld - plot all the effects in same units (average per group)
+final_fig2 <- final_fig2_f()
+### Compute variation by hhld - plot all the effects in same units (average per group) with quintiles instead of poverty lines.
+final_fig3 <- final_fig3_f()
+
+### Table proposal for gains and losses by income group and income variation
+table_9 <- table_9_f()
+
+### Formatting output to match CBO's: aggregate effects
+output.template1.final <- output.template1.final_f()
+### Formatting output to match CBO's: distributional effects
+output.template2.final <- output.template2.final_f()
+
+```
+
 
 
 <!-- 
