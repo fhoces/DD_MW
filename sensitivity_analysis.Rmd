@@ -3,6 +3,8 @@ title: 'Sensitivity Analysis'
 author: "Fernando Hoces de la Guardia"
 date: "8/9/2018"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 
@@ -21,6 +23,7 @@ param.factor.extrap <- 1.0          # Extrapolation factor from lit pop to adult
 param.base.growth <- 0.024 * 1.0    # Wage growth rate for decile w/ lowest income
 param.N <- 1.0                      # 
 param.fract.minwage <- 1.0
+param.low.wage <- 1.0               # Wage per hour under which low wage population is defined
 param.noncomp <- 1.0
 param.F.adj <- 1.0
 param.av.wage.var <- 1.0
@@ -34,65 +37,72 @@ param.ripple <- c("scope_below" = 8.7*1, "scope_above" = 11.5*1.0, "intensity" =
 param.dist.loss <- c(0.01, 0.29, 0.70) #c(0.2, 0.4, 0.40) #c(0.39567218, 0.53851506, 0.06581275) 
 param.jobcut <- 1
 param.states.raise <- 1.0
-
-# Aggregate effects
+                                                                                  # TYPE OF FN + SA ind
+# Aggregate effects                                                               FORMAT
 output.template1 <- output.template1_f()
-#Some distributional effects
+#Some distributional effects                                                      FORMAT
 output.template2 <- output.template2_f()
 
-### Call data from CPS ORG
+### Call data from CPS ORG                                                        DATA
 df <- call.cps.org.data()
 
-### Download and write economic forecast data from CBO
-trends.df <- dwld_and_write_d1()    
-### Select relevant indicators/variables
-clean.df <- select_vals(trends.df)
-### Compute growth rates for each indicator
-growth.df <- compute_rates(clean.df)
+### Download and write economic forecast data from CBO                            DATA
+cbo_forecast <- dwld_and_write_d1()                                              
+### Select relevant indicators/variables                                          DATA
+clean_cbo_forecast <- select_vals(trends.df = cbo_forecast)
+### Compute growth rates for each indicator                                       MODEL
+growth.df <- compute_rates(var.df = clean_cbo_forecast)
 
-### Get raw data on MW
+### Get raw data on MW                                                            DATA
 state_mw_raw <- dwld_and_write_d2()
-### Get clean data on MW
-state_min_w <- clean_d2()
+### Get clean data on MW                                                          DATA
+state_min_w <- clean_d2(df1 = state_mw_raw)         
 
-### Compute annual growth rate of wages from 2013 to 2016
+### Compute annual growth rate of wages from 2013 to 2016                         MODEL SA
 wage.gr <- wage.gr.f(SA.wage.gr = param.wage.gr)
-### Compute annual growth rate of workers from 2013 to 2016
+### Compute annual growth rate of workers from 2013 to 2016                       MODEL SA
 workers.gr <- workers.gr.f(SA.worker.gr = param.worker.gr)
-### Compute the gap between average wage growth and the growth of the lowest decile (assume by CBO)  
-half.gap <- half.gap.f(SA.wage.gr = param.wage.gr, SA.base.growth = param.base.growth)
-### 10 wage growth bins starting from lowest assumed value to 2 times the gap computed above
-wage.gr.bins <- wage.gr.bins.f(SA.base.growth = param.base.growth, SA.wage.gr = param.wage.gr)
-### Apply differential growth rate to wages (by deciles)
-df <- wages.final.cps.org.f(SA.states.raise = param.states.raise, SA.wages = param.wages)
+### Compute the gap between average wage growth and the growth of the lowest      MODEL SA
+### decile (assume by CBO)  
+half.gap <- half.gap.f(SA.wage.gr = param.wage.gr, 
+                       SA.base.growth = param.base.growth)
+### 10 wage growth bins starting from lowest assumed value to                     MODEL SA
+### 2 times the gap computed above
+wage.gr.bins <- wage.gr.bins.f(SA.base.growth = param.base.growth, 
+                               SA.wage.gr = param.wage.gr)
+### Apply differential growth rate to wages (by deciles)                          MODEL SA
+df <- wages.final.cps.org.f(SA.states.raise = param.states.raise, 
+                            SA.wages = param.wages, 
+                            wage.gr.bins.temp = wage.gr.bins)
 
-### Tag population of interest
-df <- get.pop.int()
-### Describing population of interest (weighted and unweighted)
+### Tag population of interest                                                    DATA/MODEL?
+df <- get.pop.int()           
+### Describing population of interest (weighted and unweighted)                   OUTPUT
 table_1 <- cbind(f_table1(final_weights, "N"), f_table1(!is.na(final_weights), "Unweighted"))
-### Table 2: summary statistics of wage variable (levels)
+### Table 2: summary statistics of wage variable (levels)                         OUTPUT
 table_2 <- f_table2()
-### Table 3: distribution of the population by wages levels
+### Table 3: distribution of the population by wages levels                       OUTPUT
 table_3 <- f_table3()
-### Table 4: combination of tables 1 - 3
+### Table 4: combination of tables 1 - 3                                          OUTPUT
 table_4 <- f_table4()
 
-### Get data for treemap 1
+### Get data for treemap 1                                                        OUTPUT
 universe.1 <- data_for_treemap1()
-### Plot treemap with distribution of labor force in 2013
+### Plot treemap with distribution of labor force in 2013                         OUTPUT
 aux.1 <- treemap.1()
 
-### Plot with distribution of wages under the status quo in 2013 and 2016
-p <- two_dist()
+### Plot with distribution of wages under the status quo in 2013 and 2016         OUTPUT
+p <- two_dist()                 
 print(p)
 
-### Get data for treemap 2
+### Get data for treemap 2                                                        OUTPUT
 universe.1 <- data_for_treemap2()
-### Treemap with distribution of labor for and wages
+### Treemap with distribution of labor for and wages                              OUTPUT
 aux.2 <- treemap.2()
 
-### Compute the percentage of non-compliers, with and w/o adjusment for tipped workers
-non.comp.stats <- f_non_comp_stats()
+### Compute the percentage of non-compliers, with and w/o adjusment               MODEL
+### for tipped workers
+non.comp.stats <- f_non_comp_stats()                
 ### Table 4 in DD (elements to compute N final)
 table.n.final <- N.final.f()
 
