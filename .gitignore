@@ -5,6 +5,7 @@
 !.README.md
 !dd_cbo_mw.Rmd
 !all_functions.md
+!sensitivity_analysis.Rmd
 .Rproj.user
 .httr-oauth
 packrat/lib*/

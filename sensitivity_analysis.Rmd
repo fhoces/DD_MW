@@ -1,0 +1,867 @@
+---
+title: 'Sensitivity Analysis'
+author: "Fernando Hoces de la Guardia"
+date: "8/9/2018"
+output: html_document
+---
+
+
+```{r all funs, eval=FALSE, echo=FALSE}
+# The base growth rate of wages will determine the dispersion of wage growth, the mean wage groth rate will be given by the 10 year economic forecast. 
+#data inputs:
+
+# Remove all data and keep all the functions
+rm(list = setdiff(ls(), lsf.str()))
+                                  ###Sensitivity Analysis parameter for:
+param.wage.gr <- 1.0                # Annualised growth rate of wages
+param.worker.gr <- 1.0              # Annualised groth rate of workers    
+
+param.eta.lit <- 1.0 #              # Elasticity of labor demand that comes from the lit
+param.factor.extrap <- 1.0          # Extrapolation factor from lit pop to adult pop
+param.base.growth <- 0.024 * 1.0    # Wage growth rate for decile w/ lowest income
+param.N <- 1.0                      # 
+param.fract.minwage <- 1.0
+param.noncomp <- 1.0
+param.F.adj <- 1.0
+param.av.wage.var <- 1.0
+param.wages <- 1.0 ####
+param.nonwage.gr <- 1.0
+param.hours <- 1.0
+param.weeks <- 1.0
+param.factor.1 <- 1
+param.net.benef <- 2e9*1.0
+param.ripple <- c("scope_below" = 8.7*1, "scope_above" = 11.5*1.0, "intensity" = 0.5*1.0)
+param.dist.loss <- c(0.01, 0.29, 0.70) #c(0.2, 0.4, 0.40) #c(0.39567218, 0.53851506, 0.06581275) 
+param.jobcut <- 1
+param.states.raise <- 1.0
+
+# Aggregate effects
+output.template1 <- output.template1_f()
+#Some distributional effects
+output.template2 <- output.template2_f()
+
+### Call data from CPS ORG
+df <- call.cps.org.data()
+
+### Download and write economic forecast data from CBO
+trends.df <- dwld_and_write_d1()    
+### Select relevant indicators/variables
+clean.df <- select_vals(trends.df)
+### Compute growth rates for each indicator
+growth.df <- compute_rates(clean.df)
+
+### Get raw data on MW
+state_mw_raw <- dwld_and_write_d2()
+### Get clean data on MW
+state_min_w <- clean_d2()
+
+### Compute annual growth rate of wages from 2013 to 2016
+wage.gr <- wage.gr.f(SA.wage.gr = param.wage.gr)
+### Compute annual growth rate of workers from 2013 to 2016
+workers.gr <- workers.gr.f(SA.worker.gr = param.worker.gr)
+### Compute the gap between average wage growth and the growth of the lowest decile (assume by CBO)  
+half.gap <- half.gap.f(SA.wage.gr = param.wage.gr, SA.base.growth = param.base.growth)
+### 10 wage growth bins starting from lowest assumed value to 2 times the gap computed above
+wage.gr.bins <- wage.gr.bins.f(SA.base.growth = param.base.growth, SA.wage.gr = param.wage.gr)
+### Apply differential growth rate to wages (by deciles)
+df <- wages.final.cps.org.f(SA.states.raise = param.states.raise, SA.wages = param.wages)
+
+### Tag population of interest
+df <- get.pop.int()
+### Describing population of interest (weighted and unweighted)
+table_1 <- cbind(f_table1(final_weights, "N"), f_table1(!is.na(final_weights), "Unweighted"))
+### Table 2: summary statistics of wage variable (levels)
+table_2 <- f_table2()
+### Table 3: distribution of the population by wages levels
+table_3 <- f_table3()
+### Table 4: combination of tables 1 - 3
+table_4 <- f_table4()
+
+### Get data for treemap 1
+universe.1 <- data_for_treemap1()
+### Plot treemap with distribution of labor force in 2013
+aux.1 <- treemap.1()
+
+### Plot with distribution of wages under the status quo in 2013 and 2016
+p <- two_dist()
+print(p)
+
+### Get data for treemap 2
+universe.1 <- data_for_treemap2()
+### Treemap with distribution of labor for and wages
+aux.2 <- treemap.2()
+
+### Compute the percentage of non-compliers, with and w/o adjusment for tipped workers
+non.comp.stats <- f_non_comp_stats()
+### Table 4 in DD (elements to compute N final)
+table.n.final <- N.final.f()
+
+### Elasticity from the literature  
+eta.lit <- eta.lit.f(SA.eta.lit = param.eta.lit)
+### Extrapolation factor used by CBO
+factor.extrap <- factor.extrap.f()
+### All remaining components required to compute effect on employment
+stats3 <- final.other.comp()
+### N final = gr * N_employed * % below min wage * compliers
+n_final <- f_n_final()
+### Adj Fact = 1/(% below min wage) * nominal variation/average variation
+### adj_fact takes literal version from CBO report (last line: "Teen")
+adj_fact <- f_adj_fact(SA.fract.minwage = param.fract.minwage,
+                       SA.av.wage.var = param.av.wage.var,
+                       frac.below.mw = table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)","Teen"]/100,
+                       avg.wg.inc = stats3["$\\overline{\\%\\Delta w}$","Teen"]/100 )
+
+### adj_fact2 takes methodological version from CBO report (last line: 1:2)
+adj_fact2 <- f_adj_fact(SA.fract.minwage = param.fract.minwage,
+                       SA.av.wage.var = param.av.wage.var,
+                       frac.below.mw = table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100,
+                       avg.wg.inc = stats3["$\\overline{\\%\\Delta w}$",1:2]/100 )
+
+### Elasticity = elasticities * Extrap * Adj Fact
+elas_final <- f_elast(var_adj_fact = 4.5) ### adj_fact | 1, 4.5
+### Employmemt effect = N final * Elasticity * Avg variation - other factors
+delta.e1 <- f_delta_e()
+
+### ASEC
+
+### Call data from CPS ASEC March 2013
+df <- call.cps.asec.data()
+### Add sensitivity analysis parameters to hours, weeks, weights
+df <- add.base.vars()
+### Merge state min wage info
+df <- add_minw(df)
+
+### Pop of interest: employed & (not self employed or self incorp) & (wage variable not zero and not missing)
+df <- f_pop_of_int()
+### Population size, employed and salaried
+table_5 <- f_table_5()
+### Descriptive stats of earnings, hours, and weeks.
+table_6 <- f_table_6()
+### Compute hourly wages, replace negative vales withs 0's
+df <- add.wage.var(df)
+### Summary stats for year 2013
+table_7 <- f_table_7()   
+
+### Computing annualized growth rate for wage
+wage.gr <- wage.gr.asec.f()
+### For workers
+workers.gr <- workers.gr.asec.f()  
+### Half of the groth gap between 1st and 10th decile.
+half.gap <- half.gap.asec.f()
+### Compute 10 rates of wage growth
+wage.gr.bins <- wage.gr.bins.asec.f()
+
+### Assign popultation to deciles according to 'wage' variable
+df <- add.wages.1()
+### Here we adjust min wages to 2016 levels
+df$wages.final <- wages.final.asec.org.f()
+
+### Descriptives of wage and population size (analogous to table 4 in CPS ORG)
+table_8 <- f_table_8()
+### Histogram of wages below $20 for 2013 and 2016
+p2 <- two_hist_asec()
+
+### Create new wage (after inc in min wage) & apply ripple effects
+df <- wage.ripple.f()
+
+### Get the number of workers whose wage would bebow 10.10 in the status quo (in millions)
+n_benes <- n_benes_f()
+### Compute total wage increase (yearly, in billions) -without ripple effects and before destroying jobs-
+wage_inc <- wage_inc_f()
+### Total gain with ripple effects but without destroying any jobs  
+wage_inc_with_ripple <- wage_inc_with_ripple_f()
+
+### Non-compliance parameter
+alpha.1 <- table.n.final["% of non compliers ($\\alpha_{1}$)", "Total"] * param.noncomp /100
+### Assign old wages to a % of the population (non-compliers)
+### Total gain with ripple effects but without destroying any jobs and accounting for non-compliance
+set.seed(123)
+df <- add.nocomp()
+### Total gain with ripple effects but without destroying any jobs and accounting for non-compliance
+wage.inc.with.ripple.non.comp <- wage.inc.with.ripple.non.comp_f()
+### Number of workers with wages below new min, that are eligible to receive wage inc (before job loses)
+N_benes_compliance_below_min <- N_benes_compliance_below_min_f()
+### Number of workers with wages above the new min, that receive a wage increase due to ripples.
+N_benes_compliance_above_min <- N_benes_compliance_above_min_f()
+### Total number of beneficiares of wage rise
+N_benes_compliance <- sum(df$hhwgt.2016[(df$wages.final !=df$new.wage.nocomp)], na.rm = TRUE)/1e6
+
+### Assign half of old wages to a % of the population (2* delta.e1)
+df <- job.killer()
+### Compute total wage increase after ripple effects (yearly in billions)
+wage.gain.total <- wage.gain.total_f()
+
+### Anualized growth rate for non-wage income
+non.wage.gr <- non.wage.gr.f()
+### Adjust non-wage income, compute per cap incomes, and compute amount won/loss per person  
+df <- all.income.f()
+### Computing statistic of income variation
+aux1 <- inc_ch_stats();
+losses.pc <- aux1[["losses.pc"]]; losses <- aux1[["losses"]]; pop.dist <- aux1[["pop.dist"]]
+### Compute balance losses and classify income by PL groups
+df <- win.loss.f()
+### Compute quintiles based on percapita income (status quo)
+df <- add.quintiles()
+### Compute variation by hhld - plot all the effects
+final_fig1 <- final_fig1_f()
+### Compute variation by hhld - plot all the effects in same units (average per group)
+final_fig2 <- final_fig2_f()
+### Compute variation by hhld - plot all the effects in same units (average per group) with quintiles instead of poverty lines.
+final_fig3 <- final_fig3_f()
+
+### Table proposal for gains and losses by income group and income variation
+table_9 <- table_9_f()
+
+### Formatting output to match CBO's: aggregate effects
+output.template1.final <- output.template1.final_f()
+### Formatting output to match CBO's: distributional effects
+output.template2.final <- output.template2.final_f()
+
+```
+
+
+
+<!-- 
+%REQUIRES UPDATES WHEN DATA CHANGES
+
+As an illustration, figure \ref{pol_est} presents values of $W(\cdot)$ for different redistributional preferences ($\rho$) assuming $\omega_{WG} = \omega_{WL} = \omega_{BL}$. In this example a policy maker that values redistribution positively ( with $\rho = 0.1$), will see a value of \$9.7 billion dollars over increasing this minimum wage. Conversely, a policy maker that dislikes redistribution (with a $\rho = -0.1$), would value the proposed policy at -\$5.7 billion dollars. Part of sensitivity analysis is performed over this two sample positions ($W(\rho = 0.1), W(\rho = -0.1)$), so those two values are highlighted in the figure.
+
+
+
+```{r SA2, eval=FALSE,echo=FALSE, warning=FALSE, message=FALSE}
+# Sample decision: value cost an benefits equally and distribution 1/q 
+# sum( (df$winners - df$losers - df$balance.loss) * df$hhwgt.2016 )
+
+dist.pref.f  <- function(rho, qi, qt){ 
+  med_q <- median(1:qt)
+  (1 - rho*(qi - med_q))/sum(1 - rho*(1:qt - med_q)) * qt
+}
+
+# sum cost a and benefits at the individual level
+final_dec.f <- function(x, df.temp = df) {
+  sum( (df.temp$winners - df.temp$losers - df.temp$balance.loss) * df.temp$hhwgt.2016 * 
+         dist.pref.f( rho = x, qi = df.temp$income.group, qt = max(df.temp$income.group)) ) /1e9
+}
+
+
+#    print("Percentage variation relative to base scenario:")
+#    print( (sapply(c(-0.1, 0.1), function(y) final_dec.f(df.temp = df4, y) ) - v0)/v0 )
+
+
+
+
+quartz()
+df <- df.final
+png("sample_pref.png", width=2*440, height=2*350, res = 100)
+par(oma = c(0,0,0,0),  mar = c( c(2,2,1,2) + .1))
+plot(seq(-1/4,1/5,by = 0.01),sapply(seq(-1/4,1/5,by = 0.01) ,final_dec.f), type = "l", main = NULL, axes=F, xlab="", ylab="", xlim = c(-0.2, .2))
+axis(side=1, at=c(-0.1), labels=c("Dislikes"))
+axis(side=1, at=c(0.1), labels=c("Likes"))
+axis(side=1, at=c(0.18), labels=c("Redistribution \n pref.") , pos=-1, tick=F, outer=TRUE, cex.axis=1.1)
+  axis(side=1, at=c(0.21), labels=c(expression( (rho) ) ) , pos=-1.5, tick=F, outer=TRUE, cex.axis=1.3)
+ 
+axis(side=1, at=c(-.2, -.1, .1), labels=c(), pos=1, tick=F)
+
+axis(side=2, at=final_dec.f(0.1), labels=c(round(final_dec.f(0.1), 1)) , pos=0.01, tick =F, las = 1)
+axis(side=2, at=final_dec.f(-0.1), labels=c(round(final_dec.f(-0.1), 1)) , pos=.04, tick =F, las = 1)
+axis(side=2, at=2, labels=c("2") , pos=0, tick =T, las = 1)
+axis(side=2, at=0, labels=c("(0,0)") , pos=0.3, tick =F, las = 1)
+axis(side=2, at=final_dec.f(0.2), labels=c("W ($bns)") , pos=0.01, tick =F, las = 1, cex = 1.1)
+
+
+#xlab = "rho", ylab = "W (billions of $)  "
+
+abline(h=0, v=0, lty = 3)
+segments(x0 = c(-0.1, 0, 0.1, 0), x1 = c(-0.1, -0.1, 0.1, 0.1 ) , 
+         y0 = c(0,final_dec.f(-0.1), 0,final_dec.f(0.1) ), 
+         y1 = c(final_dec.f(-0.1), final_dec.f(-0.1), final_dec.f(0.1), final_dec.f(0.1)  ), col = "red", lty = 1)
+dev.off()
+```  
+
+--> 
+
+
+```{r sa, final results, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+
+
+#RUN CODE FROM DD
+
+# 121 * 1.05 * 0.144  * .37 * (1 - .13) * 1/3 * 0.1 + 
+#   4 * 1.05 * 0.74   * .37 * (1 - .18) * 0.1
+# Remove all data and keep all the functions
+rm(list = setdiff(ls(), lsf.str()))
+
+v0 <-  c(-5.328055,  9.328055)
+#-5.328055  9.328055
+#v0 <-  c( -5.677396,  9.677396)
+
+#step 0: call the data: CPS, growth data, min wage data and CPS ASEC data
+#number of salary workers in 2013 (need to improve as is doing diff stuff to ORG and ASEC)
+param.N <- 1.0
+param.hours <- 1.0
+param.weeks <- 1.0
+param.states.raise <- 1
+
+# load cps asec data
+df <- call.cps.asec.data()
+df_asec <- add.base.vars()
+
+rm(df)
+
+df_csporg <- call.cps.org.data()
+df <- df_csporg
+growth.df <- get.gr.data()
+min.wage.data <- readRDS("minwage")
+st.minw <- state.minw("2013")
+st.minw.2016 <- state.minw("2015")
+st.minw.2016[c("AK"	, "AZ", "CA", "CT", "DC"	, "HI"	, "IL", "MA", "MI"	, 
+       "MN"	, "MT" , "NV" , "NE" , "NY"	, "OH"	, "RI", "VT"), ] <- 
+          c(  9.75	, 8.05, 10	, 9.6, 10.5	  , 8.5	  , 8.25, 10	, 8.5	  , 
+      9		  , 8.05 , 8.25 , 9		 , 9		, 8.1	  , 9.6 , 9.6)
+colnames(st.minw.2016) <- "2016"
+
+start <- Sys.time()
+
+SA.part1 <- function(
+  param.wage.gr = 1.0, #anual average wage growth
+  param.worker.gr = 1.0, #anual average workers growth
+  param.fract.minwage = 1.0, #Fraction of workers earning below the min wage (in ORG only so far)
+  param.av.wage.var = 1.0, #Average wage variation for those affected by min wage (only ORG)
+  param.wages = 1.0, # Wages of all workers
+  param.nonwage.gr = 1.0, 
+  param.eta.lit = 1.0, #Elasticity of labor demand for teenagers
+  param.ripple = c("scope_below" = 8.7*1.0, "scope_above" = 11.5*1.0, "intensity" = 0.5*1.0),
+  param.base.growth = 0.024 * 1.0, #wage growth of lowest decile (before state min wage increase)
+  param.factor.extrap = 1.0, #extrapolation factor from teens to adults
+  param.noncomp = 1.0, #Rate of non-compliance
+  param.F.adj = 1.0, #Adjustment factor for 'appropiate' population
+  param.factor.1 = 1.0,
+  param.net.benef = 2e9*1.0,
+  param.dist.loss = c(0.01, 0.29, 0.70), #c(0.39567218, 0.53851506, 0.06581275)
+  param.jobcut = 1){
+    # step 1: compute effect on employment and non-copliance
+    #scalar
+    wage.gr <- wage.gr.f(SA.wage.gr = param.wage.gr)
+    #scalar
+    workers.gr <- workers.gr.f(SA.worker.gr = param.worker.gr)  
+  
+    #scalar
+    half.gap <- half.gap.f(SA.wage.gr = param.wage.gr, 
+                           SA.base.growth = param.base.growth)
+    
+    #array
+    wage.gr.bins <- wage.gr.bins.f(SA.base.growth = param.base.growth,
+                                   SA.wage.gr = param.wage.gr)
+    #data
+    df <- get.pop.int()
+    #data
+    df <- wages.final.cps.org.f(SA.states.raise = param.states.raise, 
+                                SA.wages = param.wages, 
+                                wage.gr.bins= wage.gr.bins,
+                                df.temp = df)
+    #table
+    table.n.final <- N.final.f(df.temp = df, workers.gr.temp = workers.gr)
+    #scalar
+    eta.lit <- eta.lit.f(SA.eta.lit = param.eta.lit)
+    #scalar
+    factor.extrap <- factor.extrap.f(SA.factor.extrap = param.factor.extrap)
+    #table
+    #stats3 <- final.other.comp()
+    stats3 <-  df  %>% 
+    filter(pop_of_int == 1) %>% 
+    mutate("adult" = ifelse(age>=20, "Adult", "Teen") )  %>% 
+    group_by(adult)  %>% 
+    summarise("$\\overline{\\%\\Delta w}$" = wtd.mean( ifelse(wages.final <=10.10,
+                                              (10.10 - wages.final)/wages.final, NA) , 
+                                       na.rm = TRUE, weights = final_weights) * 100 ) 
+  
+    stats3 <- rbind("$\\eta_{lit}$" = c( eta.lit * factor.extrap , eta.lit ), 
+                  "$\\eta_{w \\leq MW'}$" = c( eta.lit * factor.extrap , eta.lit ) / 
+                    (table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100),
+                  "$F_{adj}$" = c( 4.5, 4.5 ),
+                  t(stats3[,-1]) )
+  
+  aux.1 <- apply(stats3, 2, function(x) x[1] * x[3])
+  stats3 <- rbind(stats3, "$\\widetilde{\\eta_{w\\leq MW}}$"= aux.1)
+  
+  colnames(stats3) <- c("Adult", "Teen")  
+  #scalar
+    delta.e1 <-  sum( (1 + workers.gr)^3 * 
+       table.n.final["Salary workers ($\\hat{ N_{employed} }$) (millions)",1:2] *  param.N *
+       table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100 * param.fract.minwage *
+       ( 1 - table.n.final["% of non compliers ($\\alpha_{1}$)",1:2]/100 - 0) * param.noncomp *
+        c( eta.lit.f(param.eta.lit) * factor.extrap.f(param.factor.extrap) , eta.lit.f(param.eta.lit) ) * 
+       stats3["$F_{adj}$", "Teen"] * param.F.adj *
+       (stats3["$\\overline{\\%\\Delta w}$",1:2]/100) * param.av.wage.var  
+    ) + 0.05 * 0.9
+      
+    abs(delta.e1  -  -0.4776402)/0.4776402
+    return(list("delta.e1" = delta.e1, "table.n.final" = table.n.final))
+}
+# Up to here I am reproducing the same results as above
+# results <- SA.part1()
+# table.n.final <- results[[2]]
+# delta.e1 <- results[[1]]
+# ##DONE WITH EMPLOYMENT now use cps asec
+# df <- df1
+
+
+SA.part2 <- function(
+  param.wage.gr = 1.0, #anual average wage growth
+  param.worker.gr = 1.0, #anual average workers growth
+  param.fract.minwage = 1.0, #Fraction of workers earning below the min wage (in ORG only so far)
+  param.av.wage.var = 1.0, #Average wage variation for those affected by min wage (only ORG)
+  param.wages = 1.0, # Wages of all workers
+  param.nonwage.gr = 1.0, 
+  param.eta.lit = 1.0, #Elasticity of labor demand for teenagers
+  param.ripple = c("scope_below" = 8.7*1.0, "scope_above" = 11.5*1.0, "intensity" = 0.5*1.0),
+  param.base.growth = 0.024 * 1.0, #wage growth of lowest decile (before state min wage increase)
+  param.factor.extrap = 1.0, #extrapolation factor from teens to adults
+  param.noncomp = 1.0, #Rate of non-compliance
+  param.F.adj = 1.0, #Adjustment factor for 'appropiate' population
+  param.factor.1 = 1.0,
+  param.net.benef = 2e9*1.0,
+  param.dist.loss = c(0.01, 0.29, 0.70), #c(0.39567218, 0.53851506, 0.06581275)
+  param.jobcut = 1){
+    # (calls delta.e1 and table.n.final
+    # step2: compute policy effects given the effects on employment for each scenario. 
+    #variable
+    df$pop_of_int <- with(df,
+                       (empl == 1 &
+                          (selfinc == 0 & selfemp == 0) & 
+                          !(incp_wag == 0 | is.na(incp_wag) ) )
+                        )
+    df <- add.wage.var(df)
+    wage.gr <- wage.gr.asec.f(SA.wage.gr = param.wage.gr)
+    workers.gr <- workers.gr.asec.f(SA.worker.gr = param.worker.gr)  
+    half.gap <- half.gap.asec.f(SA.wage.gr = param.wage.gr, SA.base.growth = param.base.growth)
+    wage.gr.bins <- wage.gr.bins.asec.f(SA.wage.gr = param.wage.gr, SA.base.growth = param.base.growth)
+    aux.var  <- wtd.quantile(x = df$wage, probs = 1:9/10,weights = df$hhwgt)
+    df <- df %>%
+        mutate( wage.deciles = cut(wage, c(0, aux.var, Inf) , 
+                                right = TRUE, include.lowest = TRUE) ,  
+                wage.adj1 =  wage * ( 1 + wage.gr.bins[wage.deciles] )^4) 
+
+#df <- add.wages.1()
+    df$wages.final <- with( df, 
+                            ifelse(wage.adj1> st.minw.2016[state,] * param.states.raise,
+                                   wage.adj1,
+                                   st.minw.2016[state,] * param.states.raise) ) * param.wages   
+#ripples
+  df <-   df %>% 
+  mutate( "hhwgt.2016" = hhwgt * (1 + workers.gr)^4 , 
+          "below_min" = ifelse(wages.final <= 10.10 & pop_of_int == 1,
+                            1, 
+                            0),
+          "below_min" = ifelse(is.na(below_min),
+                            0, 
+                            below_min), 
+          "new.wage"  = ifelse(wages.final<10.10 & pop_of_int %in% 1, 
+                            10.10, 
+                            wages.final), 
+          "new.wage"  = ifelse(wages.final>10.10 & 
+                                 wages.final<param.ripple["scope_above"] & 
+                                 pop_of_int==1,
+                               wages.final + param.ripple["intensity"] * 
+                                 (param.ripple["scope_above"] - wages.final),
+                               ifelse(wages.final>param.ripple["scope_below"] & 
+                                        wages.final<=10.10 & 
+                                        pop_of_int==1,
+                                      10.10 + param.ripple["intensity"] * 
+                                        (wages.final - 7.25),
+                                      new.wage
+                          ) )
+  )
+    alpha.1 <- table.n.final["% of non compliers ($\\alpha_{1}$)", "Total"] * param.noncomp /100
+    df <- add.nocomp(df.temp = df, alpha.1.temp = alpha.1)
+#job.kill function
+  set.seed(123)
+  job.cut.factor <- 2 * param.jobcut
+  num.to.del <- - delta.e1*1e6*job.cut.factor
+  #WOULD LIKE TO MAKE THE NEXT OPTIMIZATION MORE EFFICIENT
+  theta <- 3
+  cut.job <- 0
+  while ( abs(sum(cut.job * df$hhwgt.2016 , na.rm = TRUE) - num.to.del) >= 1e5)  { 
+    set.seed(123)
+    cut.job <- 1* ( df$wages.final<=10.10 & df$pop_of_int==1 & df$no.comply=="comply" &
+                      (theta*runif(dim(df)[1], min = 0, max = 1) < 0.5) )
+    # sum(cut.job * df$hhwgt.2016 , na.rm = TRUE)/1e6
+    if (sum(cut.job * df$hhwgt.2016 , na.rm = TRUE) - num.to.del >= 10000) {
+      theta <- theta * 1.001 
+    } else {
+      theta <- theta * 0.999
+    }
+     #print(theta)
+  } 
+  df$cut.job <- cut.job
+  df$cut.job[is.na(df$cut.job)] <- 0
+  rm(cut.job)
+  
+  #df$teen <- df$age<20
+  #prop.table(with(df[df$pop_of_int == 1, ], table(cut.job,teen)), 2)
+  
+  # Compute variables for each scenario
+  # cut jobs, no wage raise
+  df$cut.wage <- with(df, ifelse(cut.job %in% 1, 
+                                 wages.final/job.cut.factor, 
+                                 wages.final) )
+  # cut jobs relative to sq, wage raise
+  df$new.wage.final <- with(df, ifelse(cut.job %in% 1, 
+                                       wages.final/job.cut.factor, 
+                                       new.wage.nocomp) )
+  # cut jobs relative to raise, wage raise
+  df$new.wage.cut <- with(df, ifelse(cut.job %in% 1, 
+                                     new.wage.nocomp/job.cut.factor, 
+                                     new.wage.nocomp) )
+    
+  non.wage.gr <- non.wage.gr.f(SA.nonwage.gr = param.nonwage.gr)
+
+                df <- all.income.f(df.temp = df, non.wage.gr.temp = non.wage.gr)
+}  
+
+# Compute variation by hhld - plot all the effects in same units (average per group) with quintiles instead of poverty lines.
+final.plot <- function(df.temp = df) {
+      final_fig3 <- df.temp %>% 
+      select(new.inc.pc,sq.inc.pc, hhwgt.2016, balance.loss, winners, losers, income.group)  %>%   
+      mutate( "variation" = new.inc.pc - sq.inc.pc, 
+               "inc_gain" = ifelse(variation>0, 
+                                  "gain", 
+                                  ifelse(variation < 0, "loss", "same" ) ) ) %>% group_by(income.group) %>% 
+      summarise("mean" = wtd.mean(variation, weights = hhwgt.2016),
+                "mean (win)" = wtd.mean(winners, weights = hhwgt.2016), 
+                "mean (lose)" = wtd.mean(losers, weights = hhwgt.2016),
+                "mean (bal lose)" = wtd.mean(balance.loss, weights = hhwgt.2016),
+                "N" = sum( hhwgt.2016)   
+                ) 
+    
+    high.loss <-  as.numeric(final_fig3[max(final_fig3$income.group), "mean (bal lose)"])
+    
+    final_fig3 <- final_fig3 %>% 
+      select(`mean (win)`, `mean (lose)`, `mean (bal lose)`, income.group) %>% 
+      melt(value.variables=c("mean (win)", "mean (lose)") , id="income.group") %>% 
+      ggplot(aes(as.factor(income.group), value, fill = as.factor(variable))) + 
+      geom_bar(color = "gray", alpha = 0.5, 
+               stat = "summary", fun.y = "mean", 
+               position = "dodge") +
+      coord_cartesian(ylim = c(0,400) ) +
+      geom_text(x = 4.8, y = 365,angle = 90, 
+                label = - round(high.loss) , 
+                size = 3, colour = "#6699FF", alpha = 0.5) + 
+      geom_segment(aes(x = 5, y = 300, xend = 5, yend = 410), 
+                   colour = "#6699FF", arrow = arrow(length = unit(0.2, "cm"))) + 
+      theme(legend.justification=c(0, 0), 
+                    legend.position=c(0, .7),
+                    legend.background = element_rect(colour = 'transparent', fill = 'transparent') 
+                    ) +
+      scale_fill_discrete(name=NULL, 
+                          labels=c("Wage +", "Wage -", "Balance -")) + 
+      labs(y = "$/year", 
+           x = "Quintiles of per capita income" , 
+           title = "Distribution of gains and losses across quintiles") +
+  theme(plot.title = element_text(hjust = 0.5))   
+    
+    #two outputs of the SA
+    return(final_fig3)
+}
+
+###########################
+###### HERE STARTS THE SA: MODIFY CORRESPONDING PARAMETERS TO REPRODUCE TABLE 1 FROM PAPER
+df <- df_csporg
+results <- SA.part1()
+table.n.final <- results[[2]]
+delta.e1 <- results[[1]]
+##DONE WITH EMPLOYMENT now use cps asec
+df <- df_asec
+df3 <- SA.part2()
+
+param.factor.1 <- 1.0
+param.net.benef <- 2e9*1.0
+#param.dist.loss <- c(0.01, 0.29, 0.70) #c(0.39567218, 0.53851506, 0.06581275)
+param.dist.loss <- c(0.39567218, 0.53851506, 0.06581275)
+
+
+losses <- with(df3, sum(winners * hhwgt.2016) - 
+                 param.factor.1 * sum(losers * hhwgt.2016) ) - param.net.benef
+pop.dist <- wtd.table( with(df3, 
+                            findInterval(x = sq.inc.pc, 
+                                         vec = c(-Inf,11740, 6*11740, Inf)) ) ,
+                      weights = df3$hhwgt.2016 )$sum.of.weights
+losses.pc  <- as.numeric(losses) * param.dist.loss / pop.dist
+df.final <- win.loss.f(losses.pc.temp = losses.pc, 
+                       df.temp = df3)
+    
+results2 <- (sapply( c(-0.1, 0.1), 
+                  function(y) final_dec.f(x = y, df.temp = df.final) ) -v0 )/v0
+results2
+df4 <- df.final
+quintiles <- with(df4,wtd.quantile(x = sq.inc.pc, probs = 1:4/5, weights = hhwgt.2016))
+df4$income.group <- with(df4, findInterval(x = sq.inc.pc, vec =  c(-Inf,quintiles) ))
+p <- final.plot(df.temp = df4)
+print(p)
+
+#    print("Percentage variation relative to base scenario:")
+#    print( (sapply(c(-0.1, 0.1), function(y) final_dec.f(df.temp = df4, y) ) - v0)/v0 )
+
+```  
+
+
+
+```{r SA f.extrap, eval=FALSE, echo=FALSE} 
+#param.factor.extrap = 3 * seq(0,1.5, length.out = 10)
+moving.p <- 3 * 1/3
+grid.num <- 20
+welf.vals <- matrix(nrow = grid.num, ncol = 2, data = NA)
+colnames(welf.vals) <- c("rho_neg", "rho_pos")
+factor.extrap.vals <- seq(0,1.5, length.out = grid.num)
+
+i <- 0                       
+for (moving.p in 3 * factor.extrap.vals) {
+i <- i + 1
+df <- df_csporg
+results <- SA.part1(param.factor.extrap = moving.p)
+table.n.final <- results[[2]]
+delta.e1 <- results[[1]]
+##DONE WITH EMPLOYMENT now use cps asec
+df <- df_asec
+df3 <- SA.part2(param.factor.extrap = moving.p)
+
+param.factor.1 <- 1
+param.net.benef <- 2e9*1.0
+param.dist.loss <- c(0.01, 0.29, 0.70) #c(0.39567218, 0.53851506, 0.06581275)
+
+losses <- with(df3, sum(winners * hhwgt.2016) - 
+                 param.factor.1 * sum(losers * hhwgt.2016) ) - param.net.benef
+pop.dist <- wtd.table( with(df3, 
+                            findInterval(x = sq.inc.pc, 
+                                         vec = c(-Inf,11740, 6*11740, Inf)) ) ,
+                      weights = df3$hhwgt.2016 )$sum.of.weights
+losses.pc  <- as.numeric(losses) * param.dist.loss / pop.dist
+df.final <- win.loss.f(losses.pc.temp = losses.pc, 
+                       df.temp = df3)
+welf.vals[i,] <- sapply( c(-0.1, 0.1), 
+                  function(y) final_dec.f(x = y, df.temp = df.final) ) 
+}
+
+df.plot1 <- tbl_df(data.frame(cbind(factor.extrap.vals, welf.vals)))
+
+final_fig1 <- df.plot1 %>%
+  ggplot(aes(factor.extrap.vals, rho_neg)) + 
+  coord_cartesian(xlim = c(-0.1,1.6), 
+                    ylim = c(-13,13),expand = FALSE ) +
+  scale_x_discrete(limits = c(0, 1/3, 1.5), 
+                   labels = c("0", "1/3", "1.5")) + 
+  scale_y_discrete(limits = c(-12, 0, 12), 
+                   labels = c("-12", "0", "12")) +
+  geom_hline(color = "black", yintercept = 0, size = 0.5, linetype="dotted") +
+  geom_line( colour = "black", size = 0.9, linetype = "dotdash") + 
+  geom_line(aes(factor.extrap.vals, rho_pos), colour = "red", size = 0.7) + 
+  geom_text(x = 1.2, y = -4,angle = 0, 
+                label = "rho = -0.1 (dislikes)", 
+                size = 3, colour = "black") + 
+  geom_text(x = 1.2, y = 8,angle = 0, 
+              label = "rho = 0.1 (likes)", 
+              size = 3, colour = "red") + 
+  labs(y = "W", 
+       x = "x: elas_adult = x * elas_teen" , 
+       title = "Extrapolation Factor") + 
+  theme(plot.title = element_text(hjust = 0.5) )
+print(final_fig1)
+ggsave("sa_extrap.png")
+```
+
+```{r SA F.adj, eval=FALSE, echo=FALSE} 
+#param.factor.extrap = 3 * seq(0,1.5, length.out = 10)
+moving.p <- 1/4.5 
+grid.num <- 20
+welf.vals <- matrix(nrow = grid.num, ncol = 2, data = NA)
+colnames(welf.vals) <- c("rho_neg", "rho_pos")
+factor.adj.vals <- seq(1,20, length.out = grid.num)
+
+i <- 0                       
+for (moving.p in 1/4.5 * factor.adj.vals) {
+i <- i + 1
+df <- df_csporg
+results <- SA.part1(param.F.adj = moving.p)
+table.n.final <- results[[2]]
+delta.e1 <- results[[1]]
+##DONE WITH EMPLOYMENT now use cps asec
+df <- df_asec
+df3 <- SA.part2(param.F.adj = moving.p)
+
+param.factor.1 <- 1
+param.net.benef <- 2e9*1.0
+param.dist.loss <- c(0.01, 0.29, 0.70) #c(0.39567218, 0.53851506, 0.06581275)
+
+losses <- with(df3, sum(winners * hhwgt.2016) - 
+                 param.factor.1 * sum(losers * hhwgt.2016) ) - param.net.benef
+pop.dist <- wtd.table( with(df3, 
+                            findInterval(x = sq.inc.pc, 
+                                         vec = c(-Inf,11740, 6*11740, Inf)) ) ,
+                      weights = df3$hhwgt.2016 )$sum.of.weights
+losses.pc  <- as.numeric(losses) * param.dist.loss / pop.dist
+df.final <- win.loss.f(losses.pc.temp = losses.pc, 
+                       df.temp = df3)
+welf.vals[i,] <- sapply( c(-0.1, 0.1), 
+                  function(y) final_dec.f(x = y, df.temp = df.final) ) 
+}
+
+df.plot2 <- tbl_df(data.frame(cbind(factor.adj.vals, welf.vals)))
+
+final_fig1 <- df.plot2 %>%
+  ggplot(aes(factor.adj.vals, rho_neg)) + 
+  coord_cartesian(xlim = c(-0.1,21), 
+                    ylim = c(-13,13),expand = FALSE ) +
+  scale_x_discrete(limits = c(0, 4.5, 20), 
+                   labels = c("0", "4.5", "20")) + 
+  scale_y_discrete(limits = c(-12, 0, 12), 
+                   labels = c("-12", "0", "12")) +
+  geom_hline(color = "black", yintercept = 0, size = 1/3, linetype="dotted") +
+  geom_line( colour = "black", size = 0.9, linetype = "dotdash") + 
+  geom_line(aes(factor.adj.vals, rho_pos), colour = "red", size = 0.7) + 
+  labs(y = "W", 
+       x = "x: elas_lit = F_adjs * elas_teen" , 
+       title = "Adjustment Factor") +
+  theme(plot.title = element_text(hjust = 0.5))
+print(final_fig1)
+ggsave("sa_f_adj.png")
+#Saving 7.28 x 4.26 in image
+
+```
+
+```{r SA eta.teen, eval=FALSE, echo=FALSE} 
+#param.factor.extrap = 3 * seq(0,1.5, length.out = 10)
+moving.p <- 1/(0.10) 
+grid.num <- 10
+welf.vals <- matrix(nrow = grid.num, ncol = 2, data = NA)
+colnames(welf.vals) <- c("rho_neg", "rho_pos")
+factor.eta.vals <- seq(0,0.20, length.out = grid.num)
+
+i <- 0                       
+for (moving.p in 1/(0.10) * factor.eta.vals) {
+i <- i + 1
+df <- df_csporg
+results <- SA.part1(param.eta.lit = moving.p)
+table.n.final <- results[[2]]
+delta.e1 <- results[[1]]
+##DONE WITH EMPLOYMENT now use cps asec
+df <- df_asec
+df3 <- SA.part2(param.eta.lit = moving.p)
+
+param.factor.1 <- 1
+param.net.benef <- 2e9*1.0
+param.dist.loss <- c(0.01, 0.29, 0.70) #c(0.39567218, 0.53851506, 0.06581275)
+
+losses <- with(df3, sum(winners * hhwgt.2016) - 
+                 param.factor.1 * sum(losers * hhwgt.2016) ) - param.net.benef
+pop.dist <- wtd.table( with(df3, 
+                            findInterval(x = sq.inc.pc, 
+                                         vec = c(-Inf,11740, 6*11740, Inf)) ) ,
+                      weights = df3$hhwgt.2016 )$sum.of.weights
+losses.pc  <- as.numeric(losses) * param.dist.loss / pop.dist
+df.final <- win.loss.f(losses.pc.temp = losses.pc, 
+                       df.temp = df3)
+welf.vals[i,] <- sapply( c(-0.1, 0.1), 
+                  function(y) final_dec.f(x = y, df.temp = df.final) ) 
+}
+
+df.plot3 <- tbl_df(data.frame(cbind(factor.eta.vals, welf.vals)))
+
+final_fig1 <- df.plot3 %>%
+  ggplot(aes(factor.eta.vals, rho_neg)) + 
+  coord_cartesian(xlim = c(0,0.21), 
+                    ylim = c(-13,13),expand = FALSE ) +
+  scale_x_discrete(limits = c(0, 0.10, 0.20), 
+                   labels = c("0", "0.10", "0.20")) + 
+  scale_y_discrete(limits = c(-12, 0, 12), 
+                   labels = c("-12", "0", "12")) +
+  geom_hline(color = "black", yintercept = 0, size = 1/3, linetype="dotted") +
+  geom_line( colour = "black", size = 0.9, linetype = "dotdash") + 
+  geom_line(aes(factor.eta.vals, rho_pos), colour = "red", size = 0.7) + 
+  labs(y = "W", 
+       x = "elas_teen" , 
+       title = "Elasticy of Labor Demand for Teenagers") +
+  theme(plot.title = element_text(hjust = 0.5))
+print(final_fig1)
+ggsave("sa_eta.png")
+```
+
+```{r SA dist.loss, eval=FALSE, echo=FALSE} 
+df <- df_csporg
+results <- SA.part1(param.F.adj = 1)
+table.n.final <- results[[2]]
+delta.e1 <- results[[1]]
+##DONE WITH EMPLOYMENT now use cps asec
+df <- df_asec
+df3 <- SA.part2()
+
+param.factor.1 <- 1
+param.net.benef <- 2e9*1.0
+param.dist.loss <- c(0.01, 0.29, 0.70) #c(0.39567218, 0.53851506, 0.06581275)
+
+losses <- with(df3, sum(winners * hhwgt.2016) - 
+                 param.factor.1 * sum(losers * hhwgt.2016) ) - param.net.benef
+pop.dist <- wtd.table( with(df3, 
+                            findInterval(x = sq.inc.pc, 
+                                         vec = c(-Inf,11740, 6*11740, Inf)) ) ,
+                      weights = df3$hhwgt.2016 )$sum.of.weights
+losses.pc  <- as.numeric(losses) * param.dist.loss / pop.dist
+
+df.final <- win.loss.f(losses.pc.temp = losses.pc, 
+                       df.temp = df3)
+w1 <- final_dec.f(0.1, df.temp = df.final)  
+w2 <- final_dec.f(-0.1, df.temp = df.final)  
+
+#dev.off()
+png("sa_DLf.png", width = 4, height = 4, units = 'in', res = 600)
+par(oma=c(2,2,3,0) + 0.1,mar=c(0,0,0,0) + 0.1)
+layout(matrix(c(1,1,1,1,2,3,4,5), 4, 2, byrow = FALSE), widths=c(1,3), heights=c(1,1,1,1))
+barplot(losses.pc, pop.dist, space=0, 
+        col = rgb(0,0,0,.3), xaxt='n' )
+segments(x0 = 2e8, x1 = 10e8, y0 = 200, y1 = 200,  col = "red", lwd = 2, lty = 3)
+text(x = 1.5e8, y = 800, labels =  paste(round(w1),"/",round(w2))  , cex = 1.4)
+
+losses.pc1  <- as.numeric(losses) * c(0.01, 0.05, 0.94) / pop.dist
+df.final <- win.loss.f(losses.pc.temp = losses.pc1, 
+                       df.temp = df3)
+
+w1 <- final_dec.f(0.1, df.temp = df.final)  
+w2 <- final_dec.f(-0.1, df.temp = df.final)  
+barplot(losses.pc1, pop.dist, space=0, 
+        col = rgb(0,0,0,.3), ylim = c(0,200), xaxt='n', yaxt='n' )
+segments(x0 = 2.6e8, x1 = 10e8, y0 = 200, y1 = 200,  col = "red", lwd = 2, lty = 3)
+text(x = 1.9e8, y = 130, labels =  paste(round(w1),"/",round(w2))  , cex = 1.4)
+
+losses.pc2  <- as.numeric(losses) * c(0.30, 0.50, 0.20) / pop.dist
+df.final <- win.loss.f(losses.pc.temp = losses.pc2, 
+                       df.temp = df3)
+
+w1 <- final_dec.f(0.1, df.temp = df.final)  
+w2 <- final_dec.f(-0.1, df.temp = df.final)  
+barplot(losses.pc2, pop.dist, space=0, 
+        col = rgb(0,0,0,.3), ylim = c(0,200), xaxt='n', yaxt='n' )
+segments(x0 = 3e8, x1 = 3.3e8, y0 = 200, y1 = 200,  col = "red", lwd = 2, lty = 3)
+text(x = 1.9e8, y = 130, labels =  paste(round(w1),"/",round(w2))  , cex = 1.4)
+
+losses.pc3  <- as.numeric(losses) * c(0.39567218, 0.53851506, 0.06581275) / pop.dist
+df.final <- win.loss.f(losses.pc.temp = losses.pc3, 
+                       df.temp = df3)
+w1 <- final_dec.f(0.1, df.temp = df.final)  
+w2 <- final_dec.f(-0.1, df.temp = df.final)  
+barplot(losses.pc3, pop.dist, space=0, 
+        col = rgb(0,0,0,.3), ylim = c(0,200), yaxt='n' , xaxt = 'n')
+segments(x0 = 3e8, x1 = 3.3e8, y0 = 200, y1 = 200,  col = "red", lwd = 2, lty = 3)
+text(x = 1.9e8, y = 130, labels =  paste(round(w1),"/",round(w2))  , cex = 1.4)
+
+losses.pc4  <- as.numeric(losses) * c(.45, .50, 0.05) / pop.dist
+df.final <- win.loss.f(losses.pc.temp = losses.pc4, 
+                       df.temp = df3)
+w1 <- final_dec.f(0.1, df.temp = df.final)  
+w2 <- final_dec.f(-0.1, df.temp = df.final)  
+barplot(losses.pc4, pop.dist, space=0, 
+          col = rgb(0,0,0,.3), ylim = c(0,200), yaxt='n' , xaxt ='n')
+axis(side = 1, at = c(0.5e8, 1.9e8, 3.1e8), labels = c("<1PL", "1PL,6PL", ">6PL") ) 
+segments(x0 = 3e8, x1 = 3.3e8, y0 = 200, y1 = 200,  col = "red", lwd = 2, lty = 3)
+text(x = 1.9e8, y = 130, labels = paste(round(w1),"/",round(w2)) , cex = 1.4)
+mtext("Distribution of Balance Losses and Welfare \n W(0.1) / W(-0.1)", outer = TRUE, cex = 1)
+dev.off()
+```
