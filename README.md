@@ -17,5 +17,5 @@ You are encourage to suggest modifications or updates to this analysis.
 - [x] sort into components into research, data, guesswork  
 - [x] clean DD and add more detail             
 - [ ] deploy shiny app  
-- [ ] number all equations
 - [ ] review/disable warning messages
+- [ ] number all equations

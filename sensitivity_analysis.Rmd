@@ -9,35 +9,38 @@ editor_options:
 
 
 ```{r all funs, eval=FALSE, echo=FALSE}
-# The base growth rate of wages will determine the dispersion of wage growth, the mean wage groth rate will be given by the 10 year economic forecast. 
-#data inputs:
-
 # Remove all data and keep all the functions
 rm(list = setdiff(ls(), lsf.str()))
+start_time <- Sys.time()
                                   ###Sensitivity Analysis parameter for:
+#Data
 param.wage.gr <- 1.0                # Annualised growth rate of wages
 param.worker.gr <- 1.0              # Annualised groth rate of workers    
+param.states.raise <- 1.0           # Raise in state min wages
+param.N <- 1.0                      # Size of the final population
+param.fract.minwage <- 1.0          # fraction of the population with wages below new min wage
+param.av.wage.var <- 1.0            # Average percentual wage variation for workers with wage below new min
+param.wages <- 1.0                  # final wages (before raise in mi wage)
+param.hours <- 1.0                  # Average work hours in a week
+param.weeks <- 1.0                  # Avergage work weeks in a year
+param.nonwage.gr <- 1.0             # Growth rate in non wage income
 
+#Research
+param.ripple <- c("scope_below" = 8.7*1, "scope_above" = 11.5*1.0, "intensity" = 0.5*1.0) # Params of ripple effects
 param.eta.lit <- 1.0 #              # Elasticity of labor demand that comes from the lit
+
+#Guesswork
+param.base.growth <- 0.024 * 1.0    # Growth rate for the wages in the lowes decile of income
 param.factor.extrap <- 1.0          # Extrapolation factor from lit pop to adult pop
-param.base.growth <- 0.024 * 1.0    # Wage growth rate for decile w/ lowest income
-param.N <- 1.0                      # 
-param.fract.minwage <- 1.0
 param.low.wage <- 1.0               # Wage per hour under which low wage population is defined
-param.noncomp <- 1.0
+param.noncomp <- 1.0                # Percentage of non compliance
 param.F.adj <- 1.0                  # Adjustment factor to elasticity of labor demand
 param.other.factors <- 1.0          # Other factors that affect employment
-param.av.wage.var <- 1.0
-param.wages <- 1.0 ####
-param.nonwage.gr <- 1.0
-param.hours <- 1.0
-param.weeks <- 1.0
-param.factor.1 <- 1
-param.net.benef <- 2e9*1.0
-param.ripple <- c("scope_below" = 8.7*1, "scope_above" = 11.5*1.0, "intensity" = 0.5*1.0)
-param.dist.loss <- c(0.01, 0.29, 0.70) #c(0.2, 0.4, 0.40) #c(0.39567218, 0.53851506, 0.06581275) 
-param.jobcut <- 1
-param.states.raise <- 1.0
+param.factor.1 <- 1                 # Degree of substitution btwn job destroyed and wages raised (fromt the firm persp)
+param.net.benef <- 2e9*1.0          # Overall effect on the economy 
+param.dist.loss <- c(0.01, 0.29, 0.70) #c(0.2, 0.4, 0.40) #c(0.39567218, 0.53851506, 0.06581275) # Params of dist of losses
+param.jobcut <- 1                   # How jobs are cut (CBO cuts wage in 1/2 for 2 delta.e1)
+
                                                                                   # TYPE OF FN + SA ind
 # Aggregate effects                                                               FORMAT
 output.template1 <- output.template1_f()
@@ -88,18 +91,18 @@ table_3 <- f_table3()
 table_4 <- f_table4()
 
 ### Get data for treemap 1                                                        OUTPUT
-universe.1 <- data_for_treemap1()
+#universe.1 <- data_for_treemap1()
 ### Plot treemap with distribution of labor force in 2013                         OUTPUT
-aux.1 <- treemap.1()
+#aux.1 <- treemap.1()
 
 ### Plot with distribution of wages under the status quo in 2013 and 2016         OUTPUT
-p <- two_dist()                 
-print(p)
+#p <- two_dist()                 
+#print(p)
 
 ### Get data for treemap 2                                                        OUTPUT
-universe.1 <- data_for_treemap2()
+#universe.1 <- data_for_treemap2()
 ### Treemap with distribution of labor for and wages                              OUTPUT
-aux.2 <- treemap.2()
+#aux.2 <- treemap.2()
 
 ### Compute the percentage of non-compliers, with and w/o adjusment               GW SA
 ### for tipped workers
@@ -231,8 +234,7 @@ aux1 <- inc_ch_stats(SA.factor.1 = param.factor.1,
                          SA.net.benef = param.net.benef);
 losses.pc <- aux1[["losses.pc"]]; losses <- aux1[["losses"]]; pop.dist <- aux1[["pop.dist"]]
 ### Compute balance losses and classify income by PL groups                       MODEL SA
-df <- win.loss.f(SA.factor.1 = param.factor.1, 
-                       SA.net.benef = param.net.benef, losses.pc.temp = losses.pc, 
+df <- win.loss.f(SA.net.benef = param.net.benef, losses.pc.temp = losses.pc, 
                        df.temp = df)
 ### Compute quintiles based on percapita income (status quo)                      DATA
 df <- add.quintiles()
@@ -253,6 +255,7 @@ output.template1.final <- output.template1.final_f()
 ### Formatting output to match CBO's: distributional effects                      FORMAT
 output.template2.final <- output.template2.final_f()
 
+print(Sys.time() - start_time)
 ```
 
 
@@ -262,6 +265,7 @@ output.template2.final <- output.template2.final_f()
 
 As an illustration, figure \ref{pol_est} presents values of $W(\cdot)$ for different redistributional preferences ($\rho$) assuming $\omega_{WG} = \omega_{WL} = \omega_{BL}$. In this example a policy maker that values redistribution positively ( with $\rho = 0.1$), will see a value of \$9.7 billion dollars over increasing this minimum wage. Conversely, a policy maker that dislikes redistribution (with a $\rho = -0.1$), would value the proposed policy at -\$5.7 billion dollars. Part of sensitivity analysis is performed over this two sample positions ($W(\rho = 0.1), W(\rho = -0.1)$), so those two values are highlighted in the figure.
 
+--> 
 
 
 ```{r SA2, eval=FALSE,echo=FALSE, warning=FALSE, message=FALSE}
@@ -314,7 +318,6 @@ segments(x0 = c(-0.1, 0, 0.1, 0), x1 = c(-0.1, -0.1, 0.1, 0.1 ) ,
 dev.off()
 ```  
 
---> 
 
 
 ```{r sa, final results, eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}

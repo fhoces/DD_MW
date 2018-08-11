@@ -1560,7 +1560,7 @@ f_adj_fact <- function(SA.fract.minwage = param.fract.minwage,
                        avg.wg.inc = rem.comp["$\\overline{\\%\\Delta w}$",1:2]/100 ) {
   new.mw <- 10.10
   nom.wg.inc <- new.mw/7.25 - 1
-  res1 <- (1/(frac.below.mw) * SA.fract.minwage) * 
+  res1 <- ( 1/(frac.below.mw * SA.fract.minwage) )* 
       ( nom.wg.inc / ( avg.wg.inc * SA.av.wage.var ) )
   return(res1)
 }
@@ -2277,6 +2277,7 @@ inc_ch_stats <- function(SA.factor.1 = param.factor.1,
                          SA.net.benef = param.net.benef, 
                          SA.dist.loss = param.dist.loss) {
   res1 <- list()
+  # losses = all the wage gains - subs.factor * (all the loses from jod dest) - net benefits
   res1[["losses"]] <- df %>% 
     summarise(sum(winners * hhwgt.2016) - 
               SA.factor.1 * sum(losers * hhwgt.2016) -
@@ -2293,14 +2294,13 @@ inc_ch_stats <- function(SA.factor.1 = param.factor.1,
 }
 
 # Compute balance losses and classify income by PL groups
-win.loss.f <- function(SA.factor.1 = param.factor.1, 
-                       SA.net.benef = param.net.benef, losses.pc.temp = losses.pc, 
+win.loss.f <- function(SA.net.benef = param.net.benef, losses.pc.temp = losses.pc, 
                        df.temp = df) {
   # Asssing per capita balance losses to each indiv.
   df.temp$balance.loss <- as.numeric(losses.pc.temp[with(df.temp, findInterval(x = sq.inc.pc, 
                                                  vec = c(-Inf,11740, 6*11740, Inf) )) ]) 
   # Build quintiles of income based on status quo income
-  bins <- with(df.temp,wtd.quantile(x = sq.inc.pc, probs = 1:4/5, weights = hhwgt.2016))
+  bins <- with(df.temp, wtd.quantile(x = sq.inc.pc, probs = 1:4/5, weights = hhwgt.2016))
   df.temp$income.group <- with(df.temp, findInterval(x = sq.inc.pc, vec =  c(-Inf,bins) ))
 
   #df$income.group <- with(df, findInterval(x = sq.inc.pc, vec =  bins ))
