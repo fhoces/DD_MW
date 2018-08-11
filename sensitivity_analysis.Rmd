@@ -25,7 +25,8 @@ param.N <- 1.0                      #
 param.fract.minwage <- 1.0
 param.low.wage <- 1.0               # Wage per hour under which low wage population is defined
 param.noncomp <- 1.0
-param.F.adj <- 1.0
+param.F.adj <- 1.0                  # Adjustment factor to elasticity of labor demand
+param.other.factors <- 1.0          # Other factors that affect employment
 param.av.wage.var <- 1.0
 param.wages <- 1.0 ####
 param.nonwage.gr <- 1.0
@@ -100,67 +101,79 @@ universe.1 <- data_for_treemap2()
 ### Treemap with distribution of labor for and wages                              OUTPUT
 aux.2 <- treemap.2()
 
-### Compute the percentage of non-compliers, with and w/o adjusment               MODEL
+### Compute the percentage of non-compliers, with and w/o adjusment               GW SA
 ### for tipped workers
-non.comp.stats <- f_non_comp_stats()                
-### Table 4 in DD (elements to compute N final)
-table.n.final <- N.final.f()
+non.comp.stats <- f_non_comp_stats(SA.low.wage = param.low.wage)                
+### Table 4 in DD (elements to compute N final)                                   MODEL SA
+table.n.final <- N.final.f(df.temp = df, 
+                           workers.gr.temp = workers.gr, 
+                           SA.low.wage = param.low.wage)
 
-### Elasticity from the literature  
+### Elasticity from the literature                                                RESEARCH SA
 eta.lit <- eta.lit.f(SA.eta.lit = param.eta.lit)
-### Extrapolation factor used by CBO
+### Extrapolation factor used by CBO                                              GW SA
 factor.extrap <- factor.extrap.f()
-### All remaining components required to compute effect on employment
-stats3 <- final.other.comp()
-### N final = gr * N_employed * % below min wage * compliers
-n_final <- f_n_final()
-### Adj Fact = 1/(% below min wage) * nominal variation/average variation
+### All remaining components required to compute effect on employment             MODEL 
+rem.comp <- final.other.comp()
+### N final = gr * N_employed * % below min wage * compliers                      MODEL SA
+n_final <- f_n_final(SA.N = param.N, 
+                       SA.fract.minwage = param.fract.minwage, 
+                       SA.noncomp = param.noncomp)
+### Adj Fact = 1/(% below min wage) * nominal variation/average variation         MODEL SA
 ### adj_fact takes literal version from CBO report (last line: "Teen")
-adj_fact <- f_adj_fact(SA.fract.minwage = param.fract.minwage,
+n_below_mw_teen <- table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)","Teen"]/100
+adj_fact <- f_adj_fact(SA.fract.minwage = param.fract.minwage, 
                        SA.av.wage.var = param.av.wage.var,
-                       frac.below.mw = table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)","Teen"]/100,
-                       avg.wg.inc = stats3["$\\overline{\\%\\Delta w}$","Teen"]/100 )
+                       frac.below.mw = n_below_mw_teen, 
+                       avg.wg.inc = rem.comp["$\\overline{\\%\\Delta w}$","Teen"]/100 ) #1:2 |"Teen"
 
-### adj_fact2 takes methodological version from CBO report (last line: 1:2)
-adj_fact2 <- f_adj_fact(SA.fract.minwage = param.fract.minwage,
+### adj_fact2 takes methodological version from CBO report (last line: 1:2)       MODEL SA
+n_below_mw_both <- table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100
+adj_fact2 <- f_adj_fact(SA.fract.minwage = param.fract.minwage, 
                        SA.av.wage.var = param.av.wage.var,
-                       frac.below.mw = table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100,
-                       avg.wg.inc = stats3["$\\overline{\\%\\Delta w}$",1:2]/100 )
+                       frac.below.mw = n_below_mw_both, 
+                       avg.wg.inc = rem.comp["$\\overline{\\%\\Delta w}$",1:2]/100 ) #1:2 |"Teen"
 
-### Elasticity = elasticities * Extrap * Adj Fact
-elas_final <- f_elast(var_adj_fact = 4.5) ### adj_fact | 1, 4.5
-### Employmemt effect = N final * Elasticity * Avg variation - other factors
-delta.e1 <- f_delta_e()
+### Elasticity = elasticities * Extrap * Adj Fact                                 MODEL SA
+elas_final <- f_elast(var_adj_fact = 4.5 * param.F.adj) ### adj_fact | 1, 4.5     
+### Employmemt effect = N final * Elasticity * Avg variation - other factors      MODEL SA
+delta.e1 <- f_delta_e(SA.av.wage.var = param.av.wage.var, 
+                      SA.other.factors = param.other.factors)
 
-### ASEC
+### ASEC 
+# warning: replacing df 
 
-### Call data from CPS ASEC March 2013
+### Call data from CPS ASEC March 2013                                            DATA 
 df <- call.cps.asec.data()
-### Add sensitivity analysis parameters to hours, weeks, weights
-df <- add.base.vars()
-### Merge state min wage info
-df <- add_minw(df)
+### Add sensitivity analysis parameters to hours, weeks, weights                  DATA SA          
+df <- add.base.vars(SA.hours = param.hours, 
+                          SA.weeks = param.weeks, 
+                          SA.N = param.N)
+### Merge state min wage info                                                     DATA
+df <- add_minw(df.temp = df)
 
-### Pop of interest: employed & (not self employed or self incorp) & (wage variable not zero and not missing)
+### Pop of interest: employed & (not self employed or self incorp) &              MODEL           
+### (wage variable not zero and not missing)
 df <- f_pop_of_int()
-### Population size, employed and salaried
+### Population size, employed and salaried                                        OUTPUT/MODEL
 table_5 <- f_table_5()
-### Descriptive stats of earnings, hours, and weeks.
+### Descriptive stats of earnings, hours, and weeks.                              OUTPUT/MODEL
 table_6 <- f_table_6()
-### Compute hourly wages, replace negative vales withs 0's
+### Compute hourly wages, replace negative vales withs 0's                        OUTPUT/MODEL
 df <- add.wage.var(df)
-### Summary stats for year 2013
+### Summary stats for year 2013                                                   OUTPUT/MODEL
 table_7 <- f_table_7()   
 
-### Computing annualized growth rate for wage
-wage.gr <- wage.gr.asec.f()
-### For workers
-workers.gr <- workers.gr.asec.f()  
-### Half of the groth gap between 1st and 10th decile.
-half.gap <- half.gap.asec.f()
-### Compute 10 rates of wage growth
-wage.gr.bins <- wage.gr.bins.asec.f()
-
+### Computing annualized growth rate for wage                                     MODEL SA
+wage.gr <- wage.gr.asec.f(SA.wage.gr = param.wage.gr)
+### For workers                                                                   MODEL SA
+workers.gr <- workers.gr.asec.f(SA.worker.gr = param.worker.gr)             
+### Half of the groth gap between 1st and 10th decile.                            MODEL SA
+half.gap <- half.gap.asec.f(SA.wage.gr = param.wage.gr, 
+                     SA.base.growth = param.base.growth)
+### Compute 10 rates of wage growth                                               MODEL SA
+wage.gr.bins <- wage.gr.bins.asec.f(SA.base.growth = param.base.growth,
+                         SA.wage.gr = param.wage.gr)
 ### Assign popultation to deciles according to 'wage' variable
 df <- add.wages.1()
 ### Here we adjust min wages to 2016 levels
@@ -376,8 +389,8 @@ SA.part1 <- function(
     #scalar
     factor.extrap <- factor.extrap.f(SA.factor.extrap = param.factor.extrap)
     #table
-    #stats3 <- final.other.comp()
-    stats3 <-  df  %>% 
+    #rem.comp <- final.other.comp()
+    rem.comp <-  df  %>% 
     filter(pop_of_int == 1) %>% 
     mutate("adult" = ifelse(age>=20, "Adult", "Teen") )  %>% 
     group_by(adult)  %>% 
@@ -385,24 +398,24 @@ SA.part1 <- function(
                                               (10.10 - wages.final)/wages.final, NA) , 
                                        na.rm = TRUE, weights = final_weights) * 100 ) 
   
-    stats3 <- rbind("$\\eta_{lit}$" = c( eta.lit * factor.extrap , eta.lit ), 
+    rem.comp <- rbind("$\\eta_{lit}$" = c( eta.lit * factor.extrap , eta.lit ), 
                   "$\\eta_{w \\leq MW'}$" = c( eta.lit * factor.extrap , eta.lit ) / 
                     (table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100),
                   "$F_{adj}$" = c( 4.5, 4.5 ),
-                  t(stats3[,-1]) )
+                  t(rem.comp[,-1]) )
   
-  aux.1 <- apply(stats3, 2, function(x) x[1] * x[3])
-  stats3 <- rbind(stats3, "$\\widetilde{\\eta_{w\\leq MW}}$"= aux.1)
+  aux.1 <- apply(rem.comp, 2, function(x) x[1] * x[3])
+  rem.comp <- rbind(rem.comp, "$\\widetilde{\\eta_{w\\leq MW}}$"= aux.1)
   
-  colnames(stats3) <- c("Adult", "Teen")  
+  colnames(rem.comp) <- c("Adult", "Teen")  
   #scalar
     delta.e1 <-  sum( (1 + workers.gr)^3 * 
        table.n.final["Salary workers ($\\hat{ N_{employed} }$) (millions)",1:2] *  param.N *
        table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100 * param.fract.minwage *
        ( 1 - table.n.final["% of non compliers ($\\alpha_{1}$)",1:2]/100 - 0) * param.noncomp *
         c( eta.lit.f(param.eta.lit) * factor.extrap.f(param.factor.extrap) , eta.lit.f(param.eta.lit) ) * 
-       stats3["$F_{adj}$", "Teen"] * param.F.adj *
-       (stats3["$\\overline{\\%\\Delta w}$",1:2]/100) * param.av.wage.var  
+       rem.comp["$F_{adj}$", "Teen"] * param.F.adj *
+       (rem.comp["$\\overline{\\%\\Delta w}$",1:2]/100) * param.av.wage.var  
     ) + 0.05 * 0.9
       
     abs(delta.e1  -  -0.4776402)/0.4776402

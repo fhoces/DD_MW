@@ -70,6 +70,8 @@ The CBO report describes three policy estimates: the effects of raising the mini
 
 
 ```{r setup, include=FALSE}
+#REMOVE AT THE END OF THE DAY: 
+rm(list=ls())
 
 #library(checkpoint)
 #dir.create(file.path(tempdir(), ".checkpoint"), recursive = TRUE, showWarnings = FALSE)
@@ -162,7 +164,8 @@ param.N <- 1.0
 param.fract.minwage <- 1.0
 param.low.wage <- 1.0               # Wage per hour under which low wage population is defined
 param.noncomp <- 1.0
-param.F.adj <- 1.0
+param.F.adj <- 1.0                  # Adjustment factor to elasticity of labor demand
+param.other.factors <- 1.0          # Other factors that affect employment
 param.av.wage.var <- 1.0
 param.wages <- 1.0 ####
 param.nonwage.gr <- 1.0
@@ -1303,7 +1306,10 @@ The table below presents the estimate from 2013 for all each component.
 <div id="toggleText17" style="display: none">  
 
 ```{r compute Ns, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE} 
-N.final.f <- function(df.temp = df, workers.gr.temp = workers.gr){
+### Table 4 in DD (elements to compute N final)
+# TO DO: write this function in a more compact way
+N.final.f <- function(df.temp = df, workers.gr.temp = workers.gr, 
+                      SA.low.wage = param.low.wage){
   aux.1 <-  bind_rows( 
     df.temp  %>% 
     filter(pop_of_int == 1) %>% 
@@ -1312,7 +1318,7 @@ N.final.f <- function(df.temp = df, workers.gr.temp = workers.gr){
     summarise( "Salary workers ($\\hat{ N_{employed} }$) (millions)" = 
                  sum(final_weights)/1e6,
                "Low wage workers ($w \\leq 11.5 p/h$) (millions)" = 
-                 sum(final_weights * (wages.final <=11.50))/1e6,
+                 sum(final_weights * (wages.final <= 11.50 * SA.low.wage))/1e6,
                "% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)" = 
                  wtd.mean( 1 * (wages.final <= 10.10), 
                            na.rm = TRUE, weights = final_weights) * 100)  ,   
@@ -1321,7 +1327,7 @@ N.final.f <- function(df.temp = df, workers.gr.temp = workers.gr){
     summarise( "Salary workers ($\\hat{ N_{employed} }$) (millions)" = 
                  sum(final_weights)/1e6,
                 "Low wage workers ($w \\leq 11.5 p/h$) (millions)" = 
-                 sum(final_weights * (wages.final <=11.50))/1e6,
+                 sum(final_weights * (wages.final <= 11.50 * SA.low.wage))/1e6,
                 "% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)" = 
                  wtd.mean( 1*(wages.final <=10.10), 
                            na.rm = TRUE, weights = final_weights) * 100) %>% 
@@ -1332,7 +1338,7 @@ N.final.f <- function(df.temp = df, workers.gr.temp = workers.gr){
   aux.2 <- bind_rows(
     df.temp %>%
     select(wage3, age, state, final_weights, peernuot, pop_of_int, y2013)  %>%
-    filter(pop_of_int == 1 & wage3 <= 11.5) %>% 
+    filter(pop_of_int == 1 & wage3 <= 11.5 * SA.low.wage) %>% 
     mutate("adult" = ifelse(age>=20, "Adult", "Teen") )  %>% 
     group_by(adult)  %>% 
         summarise(
@@ -1342,7 +1348,7 @@ N.final.f <- function(df.temp = df, workers.gr.temp = workers.gr){
                             weights = final_weights)*100 ),  
     df.temp %>%
     select(wage3, age, state, final_weights, peernuot, pop_of_int, y2013)  %>%
-    filter(pop_of_int == 1 & wage3 <= 11.5) %>% 
+    filter(pop_of_int == 1 & wage3 <= 11.5 * SA.low.wage) %>% 
         summarise(
             "% of non compliers ($\\alpha_{1}$)" = 
             wtd.mean(1 * (wage3 + 0.25 * (peernuot == 2) + 
@@ -1499,17 +1505,17 @@ $$
 <div id="toggleText19" style="display: none">  
 
 ```{r employment effect, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}  
-#DESCRIBE
+#Elasticity from the literature         
 eta.lit.f <- function(SA.eta.lit = param.eta.lit) - 0.1 * SA.eta.lit 
 
-#DESCRIBE
+#Extrapolation factor used by CBO
 factor.extrap.f <- function(SA.factor.extrap = param.factor.extrap) 1/3 * SA.factor.extrap
 
-#DESCRIBE
+#All remaining components required to compute effect on employment
 final.other.comp <- function(df.temp = df) { 
   eta.lit <- eta.lit.f()
   factor.extrap <- factor.extrap.f()
-  stats3 <-  df.temp  %>% 
+  rem.comp <-  df.temp  %>% 
     filter(pop_of_int == 1) %>% 
     mutate("adult" = ifelse(age>=20, "Adult", "Teen") )  %>% 
     group_by(adult)  %>% 
@@ -1517,17 +1523,17 @@ final.other.comp <- function(df.temp = df) {
                                               (10.10 - wages.final)/wages.final, NA) , 
                                        na.rm = TRUE, weights = final_weights) * 100 ) 
   
-  stats3 <- rbind("$\\eta_{lit}$" = c( eta.lit * factor.extrap , eta.lit ), 
+  rem.comp <- rbind("$\\eta_{lit}$" = c( eta.lit * factor.extrap , eta.lit ), 
                   "$\\eta_{w \\leq MW'}$" = c( eta.lit * factor.extrap , eta.lit ) / 
                     (table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100),
                   "$F_{adj}$" = c( 4.5, 4.5 ),
-                  t(stats3[,-1]) )
+                  t(rem.comp[,-1]) )
   
-  aux.1 <- apply(stats3, 2, function(x) x[1] * x[3])
-  stats3 <- rbind(stats3, "$\\widetilde{\\eta_{w\\leq MW}}$"= aux.1)
+  aux.1 <- apply(rem.comp, 2, function(x) x[1] * x[3])
+  rem.comp <- rbind(rem.comp, "$\\widetilde{\\eta_{w\\leq MW}}$"= aux.1)
   
-  colnames(stats3) <- c("Adult", "Teen")  
-  return(stats3)
+  colnames(rem.comp) <- c("Adult", "Teen")  
+  return(rem.comp)
 }
 
 
@@ -1536,7 +1542,7 @@ final.other.comp <- function(df.temp = df) {
 # Elasticity = elasticities * Extrap * Adj Fact 
 # Employmemt effect = N final * Elasticity * Avg variation
 
-# FUNCTION FOR N FINAL
+# N final = gr * N_employed * % below min wage * compliers
 f_n_final <- function (SA.N = param.N, 
                        SA.fract.minwage = param.fract.minwage, 
                        SA.noncomp = param.noncomp) {
@@ -1546,11 +1552,12 @@ f_n_final <- function (SA.N = param.N,
   ( 1 - SA.noncomp * table.n.final["% of non compliers ($\\alpha_{1}$)",1:2]/100 - 0)
 }
 
-# FUNCTION FOR ADJ FACTOR
+# Adj Fact = 1/(% below min wage) * nominal variation/average variation
+# adj_fact takes literal version from CBO report (last line: "Teen")
 f_adj_fact <- function(SA.fract.minwage = param.fract.minwage, 
                        SA.av.wage.var = param.av.wage.var, 
                        frac.below.mw = table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100, 
-                       avg.wg.inc = stats3["$\\overline{\\%\\Delta w}$",1:2]/100 ) {
+                       avg.wg.inc = rem.comp["$\\overline{\\%\\Delta w}$",1:2]/100 ) {
   new.mw <- 10.10
   nom.wg.inc <- new.mw/7.25 - 1
   res1 <- (1/(frac.below.mw) * SA.fract.minwage) * 
@@ -1568,26 +1575,30 @@ f_elast <- function(SA.eta.lit = param.eta.lit,
     var_adj_fact * SA.F.adj 
 }
 
-f_delta_e <- function(SA.av.wage.var = param.av.wage.var) {
+f_delta_e <- function(SA.av.wage.var = param.av.wage.var, 
+                      SA.other.factors = param.other.factors) {
+  other.factors <- 0.05 * 0.9 * SA.other.factors
   sum( n_final * elas_final * 
-        (stats3["$\\overline{\\%\\Delta w}$",1:2]/100) * 
-        SA.av.wage.var )+ 0.05 * 0.9 
+        (rem.comp["$\\overline{\\%\\Delta w}$",1:2]/100) * 
+        SA.av.wage.var ) + other.factors
 }
 
-stats3 <- final.other.comp()
+rem.comp <- final.other.comp()
 n_final <- f_n_final()
+n_below_mw_teen <- table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)","Teen"]/100
 adj_fact <- f_adj_fact(SA.fract.minwage = param.fract.minwage, 
                        SA.av.wage.var = param.av.wage.var,
-                       frac.below.mw = table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)","Teen"]/100, 
-                       avg.wg.inc = stats3["$\\overline{\\%\\Delta w}$","Teen"]/100 ) #1:2 |"Teen"
-
+                       frac.below.mw = n_below_mw_teen, 
+                       avg.wg.inc = rem.comp["$\\overline{\\%\\Delta w}$","Teen"]/100 ) #1:2 |"Teen"
+n_below_mw_both <- table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100
 adj_fact2 <- f_adj_fact(SA.fract.minwage = param.fract.minwage, 
                        SA.av.wage.var = param.av.wage.var,
-                       frac.below.mw = table.n.final["% Salary below new MW ($P(\\hat{w} \\leq MW^{1})$)",1:2]/100, 
-                       avg.wg.inc = stats3["$\\overline{\\%\\Delta w}$",1:2]/100 ) #1:2 |"Teen"
+                       frac.below.mw = n_below_mw_both, 
+                       avg.wg.inc = rem.comp["$\\overline{\\%\\Delta w}$",1:2]/100 ) #1:2 |"Teen"
 
-#Report
-elas_final <- f_elast(var_adj_fact = 4.5) # adj_fact | 1, 4.5
+#Elasticity = elasticities * Extrap * Adj Fact
+elas_final <- f_elast(var_adj_fact = 4.5 * param.F.adj) # adj_fact | 1, 4.5
+# Employmemt effect = N final * Elasticity * Avg variation - other factors
 delta.e1 <- f_delta_e()
 # -0.5032739
 
@@ -1604,9 +1615,9 @@ elas_final <- f_elast(var_adj_fact = 1) # adj_fact | 1, 4.5
 delta.e4 <- f_delta_e()
 
 # "Arbitrary" Sens. Anal to get lower unemp (0.9 * wage in c, 0.37 to 0.5, 1/3 to 1/4)
-# delta.e3 <- sum( stats3$N * stats3$`% Empl Below MW`/100 * ( 1 - stats3$`% of non compliers with adj`/100 - 0) *
-#        0.9*stats3$`% Mean Wage Inc`/100 * 0.1/(stats3$`% Empl Below MW`/100) *
-#        ((0.9*stats3$`% Mean Wage Inc`/100)/0.5) * c(1/4, 1) 
+# delta.e3 <- sum( rem.comp$N * rem.comp$`% Empl Below MW`/100 * ( 1 - rem.comp$`% of non compliers with adj`/100 - 0) *
+#        0.9*rem.comp$`% Mean Wage Inc`/100 * 0.1/(rem.comp$`% Empl Below MW`/100) *
+#        ((0.9*rem.comp$`% Mean Wage Inc`/100)/0.5) * c(1/4, 1) 
 # ) - 0.05 * 0.9
 
 # library(foreign)
@@ -1617,13 +1628,13 @@ delta.e4 <- f_delta_e()
 # 
 # abline(v = c(-1.96, -1.6, 1.6, 1.96), col = "red")  
 
-#knitr::kable(stats3, caption="Components of Elasticities", digits = 2) 
+#knitr::kable(rem.comp, caption="Components of Elasticities", digits = 2) 
 ```    
 </div>
 
 
 ```{r table empl effect, echo=FALSE, warning=FALSE, message=FALSE}
-knitr::kable(stats3, caption="Components of Elasticities", digits = 2) 
+knitr::kable(rem.comp, caption="Components of Elasticities", digits = 2) 
 ```    
 
 Using all the components described above we get $\widehat{ \Delta^{-} E } =$ `r round(delta.e1*1000)` thousand jobs. The report however computes $F^{g}_{adjs}$ in a different fashion and gets a value of 4.5 (when computing the values of $F^{g}_{adjs}$  from the table below - as oppose to using historical values - we get $\widehat{ \Delta^{-} E } =$ `r round(delta.e2*1000)` thousand jobs). 
@@ -1812,7 +1823,7 @@ table_7 <- f_table_7()
 #### Adjusting wages 1 REF EQ ABOVE
 As with the CPS ORG, an adjustment for wages is applied. Unlike the previous modification, where the adjustments were over a fraction of the population (those who did not report an hourly wage), our understanding is that CBO adjust the wages of all the population in this case.   
 
-The formula for the adjustments are the same as those propose in equation XXXX
+The formula for the adjustments are the same as those propose in equation $\eqref{eq:2}$.
 
 #### Forecasting wage
 The wage forecast is the same methodology as in section 2.  This methodology is applied to a different data set (CPS ASEC) and for one additional year (forecasting from 2012 to 2016) than with the CPS ORG data.
@@ -1828,20 +1839,25 @@ The wage forecast is the same methodology as in section 2.  This methodology is 
 #starting at 2.4%, then adjust by minimum wages of 2016 and get a anualized 
 #growth of 2.9% for the lowest decile. 
 #THIS TWO LINES OF CODE ARE DIFFERENT BETWEEN ASEC AND ORG
+
+### Computing annualized growth rate for wage
 wage.gr.asec.f <- function(SA.wage.gr = param.wage.gr) {
   ( ( gr.factor("wages per worker", 2013, 2016) )^(1/4) - 1 ) * SA.wage.gr
 }
 
+### For workers
 workers.gr.asec.f <- function(SA.worker.gr = param.worker.gr) {
   ( ( gr.factor("workers", 2013, 2016) )^(1/4) - 1 ) * SA.worker.gr
 }
 
+### Half of the groth gap between 1st and 10th decile.
 #SAME but calling above functions
 half.gap.asec.f <- function(SA.wage.gr = param.wage.gr, 
                      SA.base.growth = param.base.growth) {
   wage.gr.asec.f(SA.wage.gr) - SA.base.growth 
 }
 
+### Compute 10 rates of wage growth
 wage.gr.bins.asec.f <- function(SA.base.growth = param.base.growth,
                          SA.wage.gr = param.wage.gr) {
   seq(SA.base.growth, wage.gr.asec.f(SA.wage.gr) + 
