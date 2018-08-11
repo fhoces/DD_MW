@@ -1868,10 +1868,10 @@ wage.gr.bins.asec.f <- function(SA.base.growth = param.base.growth,
 # CAUTION: DO NOT apply 'ntile()' fn from dplry as is will split ties differently than 'cut()' 
 # and results will not be comparable to STATA. 
 # NOT THE SAME (power of 4 intead of 3)
-add.wages.1 <- function(df.temp = df, aux.var.temp = aux.var) {
+add.wages.1 <- function(df.temp = df) {
   aux.var  <- wtd.quantile(x = df$wage, probs = 1:9/10,weights = df$hhwgt)
   df.temp %>%
-        mutate( wage.deciles = cut(wage, c(0, aux.var.temp, Inf) , 
+        mutate( wage.deciles = cut(wage, c(0, aux.var, Inf) , 
                                 right = TRUE, include.lowest = TRUE) ,  
                 wage.adj1 =  wage * ( 1 + wage.gr.bins[wage.deciles] )^4) 
 }
@@ -2100,9 +2100,9 @@ In section 2.2 we estimate that `r paste(round(table.n.final["% of non compliers
 <div id="toggleText31" style="display: none">  
 ```{r non compliesrs in asec,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
 #Assign old wages to a % of the population (non-compliers)
-add.nocomp <- function(df.temp=df, alpha.1.temp = alpha.1) {
+add.nocomp <- function(df.temp=df, alpha.1.temp = alpha.1, SA.low.wage = param.low.wage) {
   #randomly assign no compliance to alpha.1.temp% of the population
-  df.temp %>% mutate("no.comply" = ifelse(pop_of_int==1 & wages.final<11.5,   
+  df.temp %>% mutate("no.comply" = ifelse(pop_of_int==1 & wages.final<11.5 * SA.low.wage,   
                                     ifelse(runif( length(new.wage) )< alpha.1.temp, 
                                            "Not comply", "comply"),
                                     NA), 
@@ -2162,7 +2162,7 @@ The imputation above so far is applied to all workers below the minimum wage (an
 <div id="toggleText33" style="display: none">  
 ```{r job destruction,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}   
 # Assign half of old wages to a % of the population (2* delta.e1)
-job.killer <- function(df.temp= df) {
+job.killer <- function(df.temp= df, SA.jobcut = param.jobcut) {
   #Determine which fraction of the population relevant population represents 2 * delta.e1
   job.cut.factor <- 2
   frac_to_destroy <- df %>% 
@@ -2204,6 +2204,7 @@ wage.gain.total_f <- function(){
                    hhwgt.2016 * hrslyr * wkslyr , na.rm = TRUE) / 1e9
                 )  
 }
+
 #with(df, hist(new.wage.final - wages.final, xlim = c(-10,10) , ylim=c(0,3e3) , breaks = 50) )
 #df %>% mutate("wls" = ifelse(new.wage.final > wages.final, "winner", ifelse(new.wage.final == wages.final, "nothing", "loser"))) %>% with(wtd.table(wls, weights = hhwgt.2016))
 
@@ -2272,14 +2273,17 @@ all.income.f <- function(df.temp = df, non.wage.gr.temp = non.wage.gr) {
 # wage.gain.total["Total wage gain"]
 
 #Computing statistic of income variation
-inc_ch_stats <- function() {
+inc_ch_stats <- function(SA.factor.1 = param.factor.1, 
+                         SA.net.benef = param.net.benef, 
+                         SA.dist.loss = param.dist.loss) {
   res1 <- list()
   res1[["losses"]] <- df %>% 
     summarise(sum(winners * hhwgt.2016) - 
-              param.factor.1 * sum(losers * hhwgt.2016) -
-              param.net.benef)  
+              SA.factor.1 * sum(losers * hhwgt.2016) -
+              SA.net.benef)  
   aux1 <- df %>% mutate("poverty_bins" = 
-                        findInterval(x = sq.inc.pc, vec = c(-Inf,11740, 6*11740, Inf))) %>%
+                        findInterval(x = sq.inc.pc, 
+                                     vec = c(-Inf,11740, 6*11740, Inf))) %>%
   with(wtd.table(poverty_bins, weights = hhwgt.2016))
 
   res1[["pop.dist"]] <- aux1$sum.of.weights

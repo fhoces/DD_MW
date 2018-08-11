@@ -174,70 +174,83 @@ half.gap <- half.gap.asec.f(SA.wage.gr = param.wage.gr,
 ### Compute 10 rates of wage growth                                               MODEL SA
 wage.gr.bins <- wage.gr.bins.asec.f(SA.base.growth = param.base.growth,
                          SA.wage.gr = param.wage.gr)
-### Assign popultation to deciles according to 'wage' variable
+### Assign popultation to deciles according to 'wage' variable                    MODEL
 df <- add.wages.1()
-### Here we adjust min wages to 2016 levels
-df$wages.final <- wages.final.asec.org.f()
+### Here we adjust min wages to 2016 levels                                       MODEL SA
+df$wages.final <- wages.final.asec.org.f(SA.states.raise = param.states.raise,
+                                SA.wages = param.wages)
 
-### Descriptives of wage and population size (analogous to table 4 in CPS ORG)
-table_8 <- f_table_8()
-### Histogram of wages below $20 for 2013 and 2016
+### Descriptives of wage and population size (analogous to table 4 in CPS ORG)    OUTPUT
+table_8 <- f_table_8()                                                    
+### Histogram of wages below $20 for 2013 and 2016                                OUTPUT
 p2 <- two_hist_asec()
 
-### Create new wage (after inc in min wage) & apply ripple effects
-df <- wage.ripple.f()
+### Create new wage (after inc in min wage) & apply ripple effects                MODEL SA            
+df <- wage.ripple.f(SA.ripple = param.ripple)           
 
-### Get the number of workers whose wage would bebow 10.10 in the status quo (in millions)
+### Get the number of workers whose wage would bebow 10.10 in the                 MODEL 
+### status quo (in millions)
 n_benes <- n_benes_f()
-### Compute total wage increase (yearly, in billions) -without ripple effects and before destroying jobs-
+### Compute total wage increase (yearly, in billions) -without ripple             MODEL
+### effects and before destroying jobs-
 wage_inc <- wage_inc_f()
-### Total gain with ripple effects but without destroying any jobs  
+### Total gain with ripple effects but without destroying any jobs                MODEL
 wage_inc_with_ripple <- wage_inc_with_ripple_f()
 
-### Non-compliance parameter
+### Non-compliance parameter                                                      PARAMETER FROM ABOVE  
 alpha.1 <- table.n.final["% of non compliers ($\\alpha_{1}$)", "Total"] * param.noncomp /100
 ### Assign old wages to a % of the population (non-compliers)
-### Total gain with ripple effects but without destroying any jobs and accounting for non-compliance
+### Total gain with ripple effects but without destroying any jobs and            MODEL SA
+### accounting for non-compliance
 set.seed(123)
-df <- add.nocomp()
-### Total gain with ripple effects but without destroying any jobs and accounting for non-compliance
-wage.inc.with.ripple.non.comp <- wage.inc.with.ripple.non.comp_f()
-### Number of workers with wages below new min, that are eligible to receive wage inc (before job loses)
+df <- add.nocomp(df.temp=df, alpha.1.temp = alpha.1, SA.low.wage = param.low.wage)  
+### Total gain with ripple effects but without destroying any jobs and            MODEL
+### accounting for non-compliance                     
+wage.inc.with.ripple.non.comp <- wage.inc.with.ripple.non.comp_f()    
+### Number of workers with wages below new min, that are eligible to receive      MODEL
+### wage inc (before job loses)
 N_benes_compliance_below_min <- N_benes_compliance_below_min_f()
-### Number of workers with wages above the new min, that receive a wage increase due to ripples.
+### Number of workers with wages above the new min, that receive a                MODEL
+### wage increase due to ripples.
 N_benes_compliance_above_min <- N_benes_compliance_above_min_f()
-### Total number of beneficiares of wage rise
+### Total number of beneficiares of wage rise                                     MODEL
 N_benes_compliance <- sum(df$hhwgt.2016[(df$wages.final !=df$new.wage.nocomp)], na.rm = TRUE)/1e6
 
-### Assign half of old wages to a % of the population (2* delta.e1)
-df <- job.killer()
-### Compute total wage increase after ripple effects (yearly in billions)
+### Assign half of old wages to a % of the population (2* delta.e1)               MODEL SA
+df <- job.killer(df.temp= df, SA.jobcut = param.jobcut)
+### Compute total wage increase after ripple effects (yearly in billions)         MODEL
 wage.gain.total <- wage.gain.total_f()
 
-### Anualized growth rate for non-wage income
-non.wage.gr <- non.wage.gr.f()
-### Adjust non-wage income, compute per cap incomes, and compute amount won/loss per person  
-df <- all.income.f()
-### Computing statistic of income variation
-aux1 <- inc_ch_stats();
+### Anualized growth rate for non-wage income                                     MODEL SA
+non.wage.gr <- non.wage.gr.f(SA.nonwage.gr = param.nonwage.gr)
+### Adjust non-wage income, compute per cap incomes, and                          MODEL
+### compute amount won/loss per person  
+df <- all.income.f(df.temp = df, non.wage.gr.temp = non.wage.gr)
+### Computing statistic of income variation                                       MODEL SA
+aux1 <- inc_ch_stats(SA.factor.1 = param.factor.1, 
+                         SA.net.benef = param.net.benef);
 losses.pc <- aux1[["losses.pc"]]; losses <- aux1[["losses"]]; pop.dist <- aux1[["pop.dist"]]
-### Compute balance losses and classify income by PL groups
-df <- win.loss.f()
-### Compute quintiles based on percapita income (status quo)
+### Compute balance losses and classify income by PL groups                       MODEL SA
+df <- win.loss.f(SA.factor.1 = param.factor.1, 
+                       SA.net.benef = param.net.benef, losses.pc.temp = losses.pc, 
+                       df.temp = df)
+### Compute quintiles based on percapita income (status quo)                      DATA
 df <- add.quintiles()
-### Compute variation by hhld - plot all the effects
+### Compute variation by hhld - plot all the effects                              OUTPUT
 final_fig1 <- final_fig1_f()
-### Compute variation by hhld - plot all the effects in same units (average per group)
+### Compute variation by hhld - plot all the effects in                           OUTPUT
+### same units (average per group)
 final_fig2 <- final_fig2_f()
-### Compute variation by hhld - plot all the effects in same units (average per group) with quintiles instead of poverty lines.
+### Compute variation by hhld - plot all the effects in                           OUTPUT
+### same units (average per group) with quintiles instead of poverty lines.
 final_fig3 <- final_fig3_f()
 
-### Table proposal for gains and losses by income group and income variation
+### Table proposal for gains and losses by income group and income variation      OUTPUT
 table_9 <- table_9_f()
 
-### Formatting output to match CBO's: aggregate effects
+### Formatting output to match CBO's: aggregate effects                           FORMAT
 output.template1.final <- output.template1.final_f()
-### Formatting output to match CBO's: distributional effects
+### Formatting output to match CBO's: distributional effects                      FORMAT
 output.template2.final <- output.template2.final_f()
 
 ```

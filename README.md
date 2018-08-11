@@ -14,7 +14,7 @@ You are encourage to suggest modifications or updates to this analysis.
 - [x] describe each function in detail         
 - [x] Add checkpoint                           
 - [ ] push rawdata to dataverse  
-- [ ] sort into components into research, data, guesswork  
+- [x] sort into components into research, data, guesswork  
 - [x] clean DD and add more detail             
 - [ ] deploy shiny app  
 - [ ] number all equations
