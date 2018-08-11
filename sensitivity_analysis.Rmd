@@ -239,10 +239,10 @@ df <- win.loss.f(SA.net.benef = param.net.benef, losses.pc.temp = losses.pc,
 ### Compute quintiles based on percapita income (status quo)                      DATA
 df <- add.quintiles()
 ### Compute variation by hhld - plot all the effects                              OUTPUT
-final_fig1 <- final_fig1_f()
+#final_fig1 <- final_fig1_f()
 ### Compute variation by hhld - plot all the effects in                           OUTPUT
 ### same units (average per group)
-final_fig2 <- final_fig2_f()
+#final_fig2 <- final_fig2_f()
 ### Compute variation by hhld - plot all the effects in                           OUTPUT
 ### same units (average per group) with quintiles instead of poverty lines.
 final_fig3 <- final_fig3_f()
