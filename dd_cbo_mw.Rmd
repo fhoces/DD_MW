@@ -6,7 +6,7 @@ date: '`r paste("Last edit:", Sys.Date(), sep=" ")`'
 output:
   html_document:
     code_folding: show
-    collapsed: no
+    collapsed: yes
     keep_md: yes
     number_sections: yes
     smooth_scroll: no
@@ -46,7 +46,7 @@ runtime: shiny
 -->
 
 
-# Introduction   
+# Introduction  
 
 The role of policy analysis is to connect research with policy. Because of heavy time constrains, policy analyses are typically ambiguous regarding the details of how the analysis was carried out. This creates three problems: (i) its hard to understand the connection between research and policy, (ii) allows policy makers to cherry pick policy reports, and (iii) hinders systematic improvement and/or automation of parts of the analysis. In this document we demonstrate the use of a reproducible workflow to reduce the ambiguity in policy analysis.
 
@@ -183,7 +183,7 @@ param.states.raise <- 1.0
 In this companion we attempt to reproduce all the policy estimates of table 1 and 2, and walk the reader through all the details behind it. At a high level, two key components need to be computed: employment effects and distributional effects. 
 
 
-# Employment effects
+# Employment effects  
 At a general level the effects on employment ($\widehat{\Delta E}$) will be calculated using a more detailed version of the following equation:
 
 $$
@@ -1639,7 +1639,7 @@ knitr::kable(rem.comp, caption="Components of Elasticities", digits = 2)
 
 Using all the components described above we get $\widehat{ \Delta^{-} E } =$ `r round(delta.e1*1000)` thousand jobs. The report however computes $F^{g}_{adjs}$ in a different fashion and gets a value of 4.5 (when computing the values of $F^{g}_{adjs}$  from the table below - as oppose to using historical values - we get $\widehat{ \Delta^{-} E } =$ `r round(delta.e2*1000)` thousand jobs). 
 
-# Distributional effects   
+# Distributional effects
 
 In the first step towards obtaining the policy estimates presented in the [introduction](#introduction) we concluded with a figure of $\widehat{ \Delta^{-} E } =$ `r round(delta.e1*1000)` thousand jobs lost.  We now turn to two additional key quantities: the wage gain among those who get a rise do to the new minimum wage, and the distribution of the losses that pay for that raise. The effect of both quantities is estimated at the level of family income.  
 
@@ -2578,6 +2578,9 @@ knitr::kable(
 ```   
   <p><a class="btn btn-primary btn-lg" href="https://github.com/fhoces/dd_mw">Learn more</a></p>
 </div>
+
+
+## Proposed format
 
 ## Suggested new output  
 
