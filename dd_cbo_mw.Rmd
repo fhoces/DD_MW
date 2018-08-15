@@ -1506,10 +1506,7 @@ $$
 
 ```{r employment effect, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}  
 #Elasticity from the literature         
-eta.lit.f <- function(SA.eta.lit = param.eta.lit) - 0.01 * SA.eta.lit 
-asdasdasd
-qweqwe
-asd
+eta.lit.f <- function(SA.eta.lit = param.eta.lit) - 0.1 * SA.eta.lit 
 
 #Extrapolation factor used by CBO
 factor.extrap.f <- function(SA.factor.extrap = param.factor.extrap) 1/3 * SA.factor.extrap
