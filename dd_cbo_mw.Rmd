@@ -1820,7 +1820,7 @@ table_7 <- f_table_7()
 
 </div>
 
-#### Adjusting wages 1 REF EQ ABOVE
+#### Adjusting wages 1
 As with the CPS ORG, an adjustment for wages is applied. Unlike the previous modification, where the adjustments were over a fraction of the population (those who did not report an hourly wage), our understanding is that CBO adjust the wages of all the population in this case.   
 
 The formula for the adjustments are the same as those propose in equation $\eqref{eq:2}$.
@@ -2555,18 +2555,20 @@ output.template1.final_f <- function(){
 
 # Formatting output to match CBO's: distributional effects
 output.template2.final_f <- function(){
-  cbind(t(output.template2),
-        "Replication loses" =  -round((table_9[ "other loses", ]), 1)
+  res1 <- cbind(t(output.template2),
+        "Replication" =  round((table_9[ "other loses", ]), 1)
         ,"Replication NE" = round(table_9[ "aggr effect", ], 1) )
+  res1 <- t(res1)
+  res1 <- res1[c(1,3,2,4), ]
+  return(res1)
 }
 
 output.template1.final <- output.template1.final_f()
 output.template2.final <- output.template2.final_f()
 ```
 
-<div class="jumbotron">
-  <p>Final replication output </p>  
-```{r print final output, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE}
+
+```{r print final output, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE, fig.cap = "An amazing plot"}
 knitr::kable(
   list(
     output.template1.final,
@@ -2576,31 +2578,31 @@ knitr::kable(
   align = 'c'
 )
 ```   
-  <p><a class="btn btn-primary btn-lg" href="https://github.com/fhoces/dd_mw">Learn more</a></p>
-</div>
 
 
-## Proposed format
 
-## Suggested new output  
+## Suggested new format  
 
-Say something about alternative 1
+Our first proposal is to combine all gains and losses in one figure. Figure 
 
-```{r alt_output1, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE}
+```{r alt_output1, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE, fig.cap="Figure 5"}
 print(final_fig1)
 ```  
 
-Say something about alternative 2
+Describe alternative 2
 
 ```{r alt_output2, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE}
 print(final_fig2)
 ```  
 
-Say something about alternative 3
-
+Describe alternative 3
+<div class="jumbotron">
+  <p>Final replication output </p>  
 ```{r alt_output3, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE}
 print(final_fig3)
 ```  
+  <p><a class="btn btn-primary btn-lg" href="https://github.com/fhoces/dd_mw">Learn more</a></p>
+</div>
 
 
 <!--
