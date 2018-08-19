@@ -19,3 +19,4 @@ You are encourage to suggest modifications or updates to this analysis.
 - [ ] deploy shiny app  
 - [ ] review/disable warning messages
 - [ ] number all equations
+- [ ] hierarchical display (options: section folding, child docs, tabbed sections)

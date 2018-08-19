@@ -2581,7 +2581,7 @@ knitr::kable(
 
 
 
-## Suggested new format  
+## New format  
 
 Our first proposal is to combine all gains and losses in one figure. Figure 
 
