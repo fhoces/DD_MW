@@ -2600,7 +2600,6 @@ print(final_fig2)
 
 For our third and last iteration, we propose that the output that policy makers should take from this analysis is the following. 
 
-Describe alternative 3
 <div class="jumbotron">
   <p>Final replication output </p>  
 ```{r alt_output3, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE, fig.cap="Figure 7"}
