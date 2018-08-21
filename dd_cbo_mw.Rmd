@@ -2583,28 +2583,33 @@ knitr::kable(
 
 ## New format  
 
-Our first proposal is to combine all gains and losses in one figure. Figure 
+Our first proposal is to combine all gains and losses in one figure. Figure 5 plots the variation in the income per capita of all the population, sorted by initial income. The black dots represent income variation due to wage gains and wage losses from the new minimum wage. The blue dots represente the average income loss by each person to pay for the increase in the minimum wage. The read lines represents poverty lines. 
+
+As we can see, the direct effect is largely progressive (larger proportion of benefits to people in lower parts of the income distribution). This figure also highlights how little is known about who pays for a rise in the minimum wage. Laking evidence at that time, CBO had to assume ("guess work") that the distribution was as depicted in figure 5: people under one poverty line (PL) pays 1% of the losses, people between 1 and 6 PLs pays 29%, and people above 6 PLs pays 70% of the losses. 
 
 ```{r alt_output1, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE, fig.cap="Figure 5"}
 print(final_fig1)
 ```  
 
-Describe alternative 2
+Although figure 5 is good to illustrate the last point, it is not a good figure to present as the outcome to policy makers as compares _effective_ wage variations due to raise in minimum wage (black dots) with _average_ income losses (blue dots). A second version for a final output is presented in figure 6. Here the population has been grouped by where there income falls into different poverty line bins. Now we are comparing averages with averages, and are still using the same categories used by CBO (poverty lines). However each group contain a different number of individuals (for example there is much more people under 1 PL than above 6 PLs). This makes it harder for policy makers to separate normative from positive judgemntes (for example: a policy makers that weights each bin equally is implicitly giving more weight to individuals whose income is above 6 PLs that below 1 PL).
 
-```{r alt_output2, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE}
+```{r alt_output2, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE, fig.cap="Figure 6"}
 print(final_fig2)
 ```  
+
+
+For our third and last iteration, we propose that the output that policy makers should take from this analysis is the following. 
 
 Describe alternative 3
 <div class="jumbotron">
   <p>Final replication output </p>  
-```{r alt_output3, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE}
+```{r alt_output3, eval=TRUE,echo=FALSE, warning=FALSE, message=FALSE, fig.cap="Figure 7"}
 print(final_fig3)
 ```  
   <p><a class="btn btn-primary btn-lg" href="https://github.com/fhoces/dd_mw">Learn more</a></p>
 </div>
 
-
+In figure 7 we summarize all the estimated effects associated with raising the minimum wage. The red bars represent the average gain in per capita income due to wage raises. The green bars represent the average loss in per capita income due to job losses. And the blue bars represent the average loss in per capita income that is requiered to pay for a raise in the minimum wage ("balance losses"). All of this estimates are presented for five equally size groups of the population as distributed by income (income quintiles).
 <!--
 # Extensions
 
@@ -2625,7 +2630,6 @@ knitr::kable(round(table_9), caption="Summary of effect of raising the minimum w
 mod.output.template
 ```  
 
--->
 
 ## Sensitivity Analysis
 
@@ -2652,6 +2656,7 @@ $$
 
 $Q_i$ represent the quintile in the income distribution (1 the lowest and $Q_{max}=5$ the highest), and $\rho$ parametrizes the preferences towards redistribution ($\rho<0$ dislikes redistribution, $\rho>0$ likes redistribution). The parameter $\rho$ is restricted to values between $-\frac{1}{2}$ and  $\frac{1}{2}$ so all weights are strictly positive. This function was designed ad-hoc only to illustrate a possible set of preferences used by policy makers when observing the policy estimates.
 
+-->
 
 
 [^1]: The report presents smaller estimates for the \$9.00 dollar option (-0.075). The rationale is that a smaller increase (in magnitude but also not indexed by inflation, and with later implementation than the 10.10 option)   will allow firms to adjust other margins before reducing employment.
