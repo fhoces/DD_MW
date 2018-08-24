@@ -5,7 +5,7 @@ author: "Download/Modify/Contribute the analysis [here](https://github.com/fhoce
 date: '`r paste("Last edit:", Sys.Date(), sep=" ")`'
 output:
   html_document:
-    code_folding: show
+    code_folding: hide
     collapsed: yes
     keep_md: yes
     number_sections: yes
@@ -20,7 +20,6 @@ editor_options:
 
 <!--
 The following chunk is to hide/display code with a specific title ('R' and 'Stata')
--->
   <script language="javascript">
     function toggle(num) {
       var ele = document.getElementById("toggleText" + num);
@@ -35,6 +34,8 @@ The following chunk is to hide/display code with a specific title ('R' and 'Stat
       }
    }
   </script>
+-->
+
 
 <!--
 Following line is to get rpubs to recognize external links-->
@@ -104,6 +105,7 @@ knitr::opts_chunk$set(cache = TRUE)
 statapath <- "/Applications/Stata/Stata.app/Contents/MacOS/Stata"
 
 display_code <- TRUE #set false when outputing to pdf (maybe?)
+display_stata <- FALSE
 ```
 
 
@@ -210,9 +212,8 @@ The weights used in our analysis will be `orgwgt/12`
 
 #### Code to load the data
 
-<a id="displayText" href="javascript:toggle(1);">`R`</a>  
-<div id="toggleText1" style="display: none">  
-```{r loading cps data R, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
+
+```{r loading cps data R, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE} 
 call.cps.org.data <- function(){
   data_use <- "CPER_ORG"
   # Using CEPR ORG data
@@ -252,12 +253,10 @@ call.cps.org.data <- function(){
 
 df <- call.cps.org.data()
 ```  
-</div>
 
-<a id="displayText" href="javascript:toggle(2);">`Stata`</a>  
-<div id="toggleText2" style="display: none">  
-```{r loading data Stata SHC, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
-* How to get the data:
+
+```{r loading data Stata SHC, eval=FALSE, echo=display_stata, engine="stata", engine.path=statapath, comment=""}
+* How to get the data:asd
 use "/Users/fhoces/Documents/data/CPS/cepr_org_2013.dta", clear
 
 *Following the notes here (https://cps.ipums.org/cps/outgoing_rotation_notes.shtml) I generate the weights as orgwgt/12
@@ -269,7 +268,6 @@ gen round_weight = round(orgwgt/12, 1)
 drop if orgwgt == .
 sum(orgwgt)
 ```  
-</div>
 
 ### Wage variable
 We assume no further adjustments like imputation for top coding, trimming, excluding overtime/commissions, or imputation of usual hours for ''hours vary'' respondents. The CEPR ORG data includes several wage variables ([described here](http://ceprdata.org/cps-uniform-data-extracts/cps-outgoing-rotation-group/)). The wage variable that best matches the description above is `wage3`. This variable measures earnings for hourly workers (excluding overtime, tips, commissions and bonuses -otc-) and non hourly workers (including otc). According to CEPR "...attempts to match the NBER’s recommendation for the most consistent hourly wage series from 1979 to the present"
@@ -309,9 +307,6 @@ The original report assumes higher wage growth for high wages than low wages. To
 The adjustment over number of workers was made through the weight variable `final_weights` (multiplying it by the growth rate) whereas the `wage3` variable was multiplied by the forecast growth rate of per worker wages.   
 
 ##### Code to get economic growth forecasts
-
-<a id="displayText" href="javascript:toggle(3);">`R`</a>  
-<div id="toggleText3" style="display: none">      
 
 ```{r Getting forecast data, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results = "hide"}
 
@@ -401,12 +396,8 @@ growth.df <- compute_rates(clean.df)
 #gr.factor("wages per worker", 2014, 2016)
 ```
 
-</div>
 
-<a id="displayText" href="javascript:toggle(4);">`Stata`</a>  
-<div id="toggleText4" style="display: none">  
-
-```{r Getting forecast data - Stata HC, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
+```{r Getting forecast data - Stata HC, eval=FALSE,echo=display_stata, engine="stata", engine.path=statapath, comment=""}
 * Anual growth rates (R code to compute rates in commnets):
 * ( gr.factor("wages per worker", 2014, 2016) )^(1/3) - 1
 scalar wage_gr = 0.04538147
@@ -414,7 +405,6 @@ scalar wage_gr = 0.04538147
 scalar workers_gr = 0.01550989
 ```  
 
-</div>
 
 #### ACA adjustments  
 
@@ -430,8 +420,6 @@ Whenever the predicted wages were below the 2016 federal minimum wage they were 
 
 ##### Code to get minimum wage values by state
 
-<a id="displayText" href="javascript:toggle(5);">`R`</a>  
-<div id="toggleText5" style="display: none">    
 ```{r Getting min wage data , eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results = "hide"}
 # Minimum wage by state: download, write and read data
 dwld_and_write_d2 <- function() {
@@ -502,12 +490,9 @@ state_min_w <- clean_d2(df1 = state_mw_raw)
 # Export MW data to Stata
 write.dta(state_min_w, "state_min_w.dta")
 ```
-</div>
 
-<a id="displayText" href="javascript:toggle(6);">`Stata`</a>  
-<div id="toggleText6" style="display: none">  
 
-```{r Getting min wage data - Stata , eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
+```{r Getting min wage data - Stata , eval=FALSE,echo=display_stata, engine="stata", engine.path=statapath, comment=""}
 preserve
   use "/Users/fhocesde/Documents/dissertation/Replication/state_min_w.dta", clear
   sort states
@@ -516,12 +501,7 @@ preserve
 restore
 ```  
 
-</div>
-
 #### Code to forecast wages and workers
-
-<a id="displayText" href="javascript:toggle(7);">`R`</a>  
-<div id="toggleText7" style="display: none">  
 
 ```{r Adjusting wages to 2016 , eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results = "hide"}
 #GENERAL NOTE FOR THIS SECTION: the analysis perfomed here is the same as the one with CPS ASEC, so it should be better to wrap it in a function that is called twice. This way I can make sure that the sensitivity analysis works everywhere.
@@ -600,12 +580,7 @@ df <- wages.final.cps.org.f()
 
 ```  
 
-</div>
-
-<a id="displayText" href="javascript:toggle(8);">`Stata`</a>  
-<div id="toggleText8" style="display: none">  
-
-```{r Adjusting wages to 2016 - Stata, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
+```{r Adjusting wages to 2016 - Stata, eval=FALSE,echo=display_stata, engine="stata", engine.path=statapath, comment=""}
 * Forecast wages to 2016 : apply diff growth rates per decile (deciles of growth gen in R)
 cap drop w3_*
 xtile w3_deciles = wage3 [w =final_weight], nq(10)
@@ -632,8 +607,6 @@ drop _m
 gen w3_adj_min = w3_adj1
 replace w3_adj_min = minwage_2016 if w3_adj1 < minwage_2016
 ```  
-
-</div>
 
 
 ## Get the $N$   
@@ -695,10 +668,7 @@ Define variable that tags population of interest
 
 #### Statistics and code behind figure 1
 
-<a id="displayText" href="javascript:toggle(9);">`R`</a>   
-<div id="toggleText9" style="display: none">   
-
-```{r desc stats2,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, error=FALSE, collapse=TRUE}  
+```{r desc stats2,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, error=FALSE, collapse=TRUE}   
 # Tag population of interest:
 # Employed &
 #   (not selfincorporated | not selfemployed) &
@@ -878,12 +848,7 @@ table_3 <- f_table3()
 table_4 <- f_table4()
 ```
 
-</div>
-
-<a id="displayText" href="javascript:toggle(10);">`Stata`</a>  
-<div id="toggleText10" style="display: none">  
-
-```{r desc stats2 STATA, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
+```{r desc stats2 STATA, eval=FALSE,echo=display_stata, engine="stata", engine.path=statapath, comment=""}
 
 *Population of interest
 
@@ -1002,8 +967,6 @@ noi mat list table_1
 
 ```
 
-</div>
-
 ```{r print fig1, echo=FALSE}
 universe.1 <- data_for_treemap1()
 treemap.1()
@@ -1012,9 +975,6 @@ treemap.1()
 For the universe of interest (employed, salaried, with hourly wages or non varying hours N = `r temp.pop.of.interest` millions), we describe the distribution of hourly wages in 2013 and the forecast values for 2016. Figure 2.
 
 #### Statistics and code behind figure 2
-
-<a id="displayText" href="javascript:toggle(11);">`R`</a>  
-<div id="toggleText11" style="display: none">  
 
 ```{r Dist wage, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results="hide", error=FALSE, collapse=TRUE, fig.show='hold'}
 # Plot with distribution of wages under the status quo in 2013 and 2016
@@ -1050,12 +1010,7 @@ two_dist <- function() {
 p <- two_dist()
 ```
 
-</div>
-
-<a id="displayText" href="javascript:toggle(12);">`Stata`</a>  
-<div id="toggleText12" style="display: none">  
-
-```{r Dist wage - Stata, eval=FALSE,echo=display_code, engine="stata", engine.path=statapath, comment=""}
+```{r Dist wage - Stata, eval=FALSE,echo=display_stata, engine="stata", engine.path=statapath, comment=""}
 *Figure 2
 cap drop *_weight_2016
 gen final_weight_2016 = final_weight * (1 + wage_gr)^3
@@ -1076,12 +1031,9 @@ twoway 	(kdensity wage3 if pop_of_int == 1 [fweight = round_weight],
 #delimit cr
 ```
 
-</div>
-
 ```{r print fig2, echo=FALSE, warning=FALSE, message=FALSE}
 print(p)
 ```  
-
 
 Table 1 below presents more detail statistics for the wage distributions for 2013 and for the forecast wages of 2016.  
 
@@ -1093,8 +1045,6 @@ Among the population of interest, the employment effects of the minimum wage wil
 
 #### Statistics and code behind figure 3
 
-<a id="displayText" href="javascript:toggle(13);">`R`</a>  
-<div id="toggleText13" style="display: none">  
 ```{r Fig 3, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results="hide", error=FALSE, collapse=TRUE, fig.show='hold'}
 #####################
 #if (!(length(dev.list()) == 0)) { dev.off() }
@@ -1151,7 +1101,6 @@ treemap.2 <- function() {
 #Maybe not even a plot: only a slider with min wage and a
 #reactive box with the number of workers that would be below it.
 ```   
-</div>
 
 ```{r print fig3, echo=FALSE, warning=FALSE, message=FALSE}
 universe.1 <- data_for_treemap2()
@@ -1186,9 +1135,6 @@ Following the original report (footnote 25) we will consider salary workers as n
 
 ##### Code to compute percentage of non compliers
 
-<a id="displayText" href="javascript:toggle(15);">`R`</a>  
-<div id="toggleText15" style="display: none">  
-
 ```{r Estimating non compliance, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}
 # Percentage of total workers in 2013 that earn less that their states' minimum wage.
 # Universe is defined by "low wage" workers, with wages below $11.5 an hour.  
@@ -1212,8 +1158,6 @@ f_non_comp_stats <- function(SA.low.wage = param.low.wage){
 
 non.comp.stats <- f_non_comp_stats()
 ```  
-
-</div>
 
 
 #### Not covered that might benefit   
@@ -1302,9 +1246,6 @@ $$
 
 The table below presents the estimate from 2013 for all each component.
 
-<a id="displayText" href="javascript:toggle(16);">`R`</a>  
-<div id="toggleText17" style="display: none">  
-
 ```{r compute Ns, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}
 ### Table 4 in DD (elements to compute N final)
 # TO DO: write this function in a more compact way
@@ -1371,13 +1312,10 @@ table.n.final <- N.final.f()
 # I have pinned down the source of the problem to differences in the way % is calculated (for groups relative to the total)
 ```
 
-</div>
 
 ```{r table summary ,echo=FALSE, warning=FALSE, message=FALSE}
 knitr::kable(table.n.final, caption="Characteristics of target population", digits = 2)
 ```  
-
-
 
 ## Get the $\eta \times \Delta w$  
 
@@ -1500,9 +1438,6 @@ $$
 $$  
 
 ### Code to compute each component
-
-<a id="displayText" href="javascript:toggle(19);">`R`</a>  
-<div id="toggleText19" style="display: none">  
 
 ```{r employment effect, eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}  
 #Elasticity from the literature         
@@ -1630,7 +1565,6 @@ delta.e4 <- f_delta_e()
 
 #knitr::kable(rem.comp, caption="Components of Elasticities", digits = 2)
 ```    
-</div>
 
 
 ```{r table empl effect, echo=FALSE, warning=FALSE, message=FALSE}
@@ -1650,10 +1584,6 @@ As the unit of interest now is the family and detailed information on income is 
 #### Code to load the data and merge state minimum wages
 
 To the CPS ASEC data we also merge the data on state minimum wages describe in section [2.1.4.3](#state-min-wage)
-
-
-<a id="displayText" href="javascript:toggle(21);">`R`</a>  
-<div id="toggleText21" style="display: none">   
 
 ```{r loading data cps_asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}   
 # List all non-function objects that I need from here forward
@@ -1711,8 +1641,6 @@ df <- add.base.vars()
 df <- add_minw(df)
 ```   
 
-</div>
-
 ### Computing wages in CPS ASEC 2013  
 
 The hourly wage ($w$) was computed as the ratio of yearly earnings ($y$) and the product of usual number of hours worked in a week ($Hour.per.Week$) and the number of weeks worked in a year ($Weeks.per.Year$). The CPS ASEC data set contains three variables for yearly earnings: `incp_all, incp_ern`, `incp_wag` corresponding to all income, earnings, and wages respectively. We choose `incp_wag`.
@@ -1726,9 +1654,6 @@ $$
 $$
 
 #### Code for computing wages and descriptive statistics  
-
-<a id="displayText" href="javascript:toggle(23);">`R`</a>  
-<div id="toggleText23" style="display: none">  
 
 ```{r Descript stats1 cps asec, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
 # Tag population of interest FH: (1) Need to deal with 598 NA's and (2) clarify
@@ -1818,8 +1743,6 @@ df <- add.wage.var(df)
 table_7 <- f_table_7()
 ```
 
-</div>
-
 #### Adjusting wages 1
 As with the CPS ORG, an adjustment for wages is applied. Unlike the previous modification, where the adjustments were over a fraction of the population (those who did not report an hourly wage), our understanding is that CBO adjust the wages of all the population in this case.   
 
@@ -1830,8 +1753,6 @@ The wage forecast is the same methodology as in section 2.  This methodology is 
 
 ##### Code to forecast wages, workers
 
-<a id="displayText" href="javascript:toggle(25);">`R`</a>  
-<div id="toggleText25" style="display: none">
 ```{r forecasting cps asec wage, eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results = "hide"}
 #Wage adjutsment
 #CBO mentions that the lowest 10th percent gets a 2.9% growth in anual wage
@@ -1892,12 +1813,8 @@ wage.gr.bins <- wage.gr.bins.asec.f()
 df <- add.wages.1()
 df$wages.final <- wages.final.asec.org.f()
 ```    
-</div>
 
 ##### Statistics and code behind figure 4  
-
-<a id="displayText" href="javascript:toggle(27);">`R`</a>  
-<div id="toggleText27" style="display: none">  
 
 ```{r desc stats2 in forcast asec wage,  eval=TRUE, echo=display_code, warning=FALSE, message=FALSE}
 # Descriptives of wage and population size (analogous to table 4 in CPS ORG)
@@ -1984,8 +1901,6 @@ p2 <- two_hist_asec()
 # knitr::kable(table_8, caption="Comparison of 2013 and 2016 under the status quo", digits = 1)
 ```  
 
-</div>
-
 
 ```{r plot and table for dist asec, echo=FALSE, warning=FALSE, message=FALSE}
 print(p2)
@@ -2026,9 +1941,6 @@ MW' \quad o/w
 $$
 
 ##### Code for new min wage with ripple effects   
-
-<a id="displayText" href="javascript:toggle(29);">`R`</a>  
-<div id="toggleText29" style="display: none">  
 
 ```{r positive effects,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
 # Increase population size (apply workers growth rate to all pop)
@@ -2089,15 +2001,12 @@ n_benes <- n_benes_f()
 wage_inc <- wage_inc_f()
 wage_inc_with_ripple <- wage_inc_with_ripple_f()
 ```  
-</div>
 
 #### Substracting non compliers  
 In section 2.2 we estimate that `r paste(round(table.n.final["% of non compliers ($\\alpha_{1}$)", "Total"], 1),"%", sep="")` of workers eligible for a rise would not receive such benefit. To account for this fraction of non compliers replace the same fraction of new wages with what would have receive under the status quo.  
 
 ##### Code to substract non compliers  
 
-<a id="displayText" href="javascript:toggle(31);">`R`</a>  
-<div id="toggleText31" style="display: none">  
 ```{r non compliesrs in asec,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}
 #Assign old wages to a % of the population (non-compliers)
 add.nocomp <- function(df.temp=df, alpha.1.temp = alpha.1, SA.low.wage = param.low.wage) {
@@ -2147,10 +2056,7 @@ N_benes_compliance_above_min <- N_benes_compliance_above_min_f()
 N_benes_compliance <- sum(df$hhwgt.2016[(df$wages.final !=df$new.wage.nocomp)], na.rm = TRUE)/1e6
 ```
 
-</div>
-
 After accounting for non compliance, the total number of workers that are potentially eligible for a raise is `r pt(N_benes_compliance)` million. Of that number `r pt(N_benes_compliance_below_min)` would have had a wage below the new minimum and `r pt(N_benes_compliance_above_min)` would have had a wage above 10.10, but receives a wage increase through ripple effects. We now impute job losses in order to obtain the final number of workers who benefit and lost from a raise in the minimum wage.
-
 
 ### Imputing job losses
 
@@ -2158,8 +2064,6 @@ The imputation above so far is applied to all workers below the minimum wage (an
 
 #### Code to impute job loses
 
-<a id="displayText" href="javascript:toggle(33);">`R`</a>  
-<div id="toggleText33" style="display: none">  
 ```{r job destruction,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}   
 # Assign half of old wages to a % of the population (2* delta.e1)
 job.killer <- function(df.temp= df, SA.jobcut = param.jobcut) {
@@ -2211,7 +2115,6 @@ wage.gain.total_f <- function(){
 df <- job.killer()
 wage.gain.total <- wage.gain.total_f()
 ```  
-</div>
 
 So far we get a total wage gain (accounting for job losses) of `r pt(wage.gain.total["Total wage gain"])`
 billion dollars (in 2016) and a total wage loss of `r pt(wage.gain.total["Total wage loss"])` billions due to workers loosing their jobs. The funds that cover the wage gains have to come from either less profits for business or higher prices for consumers. In the next section we review the distribution of wage gains, wage losses and balance losses across the income distribution.
@@ -2233,8 +2136,7 @@ Additional information needed from CBO: how do they decompose the income.
 Forecasts of population growth were the same for working population. For non working population, the growth rate was matched to CBO forecasts for that group.
 
 #### Code to construct the final income variables
-<a id="displayText" href="javascript:toggle(34);">`R`</a>  
-<div id="toggleText34" style="display: none">  
+
 ```{r final income vars,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE}   
 #Anualized growth rate for non-wage income
 non.wage.gr.f <- function(SA.nonwage.gr = param.nonwage.gr) {
@@ -2325,7 +2227,6 @@ losses.pc <- aux1[["losses.pc"]]; losses <- aux1[["losses"]]; pop.dist <- aux1[[
 df <- win.loss.f()
 df <- add.quintiles()
 ```
-</div>
 
 
 <!--
@@ -2357,9 +2258,6 @@ No interactions with other programs is assumed (SNAP or EITC).
   - CBO acknowledges uncertainty in the estimates of elasticity due to possible technological changes in the future.  
 
 # Results
-
-<a id="displayText" href="javascript:toggle(35);">`R`</a>  
-<div id="toggleText35" style="display: none">  
 
 ```{r income,  eval=TRUE,echo=display_code, warning=FALSE, message=FALSE, results='hide'}
 # Compute variation by hhld - plot all the effects
@@ -2536,7 +2434,6 @@ table_9 <- table_9_f()
 #    - what is the standard way to choose one obs per family?
 ```  
 
-</div>
 
 ## Original format
 
