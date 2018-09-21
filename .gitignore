@@ -9,7 +9,7 @@
 !cepr_march_2013.zip
 !cepr_org_2013.dta
 !state_mw.csv
-!all_functions.md
+!all_functions.R
 !sensitivity_analysis.Rmd
 .Rproj.user
 .httr-oauth
