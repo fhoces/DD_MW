@@ -4,6 +4,11 @@
 !.gitignore
 !.README.md
 !dd_cbo_mw.Rmd
+!state_mw_clean.csv
+!CBO_forec_in2013.csv
+!cepr_march_2013.zip
+!cepr_org_2013.dta
+!state_mw.csv
 !all_functions.md
 !sensitivity_analysis.Rmd
 .Rproj.user
