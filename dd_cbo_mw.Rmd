@@ -8,11 +8,11 @@ output:
     code_folding: hide
     collapsed: yes
     keep_md: yes
-    number_sections: yes
+    number_sections: no
     smooth_scroll: no
     theme: united
     toc: yes
-    toc_depth: 2
+    toc_depth: 3
     toc_float: yes
 editor_options:
   chunk_output_type: console
@@ -90,12 +90,12 @@ lapply(list.of.packages, require, character.only = TRUE)
 # Setting working directory
 library(here)
 
-# Setting up workflow
-for (folder in c("rawdata", "data", "documentation", "output", "paper", "scripts")) {
-  if ( !(folder %in% dir()) ) {
-    dir.create(folder)    
-  }
-}
+# # Setting up workflow
+# for (folder in c("rawdata", "data", "documentation", "output", "paper", "scripts")) {
+#   if ( !(folder %in% dir()) ) {
+#     dir.create(folder)    
+#   }
+# }
 
 ## NEED TO ADD CHECKPOINT
 
